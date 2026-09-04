@@ -14,9 +14,5 @@ echo "=== Installing requirements ==="
 pip install -r requirements.txt
 
 echo ""
-echo "=== Collecting static files ==="
-python manage.py collectstatic --noinput
-
-echo ""
 echo "=== Build Complete ==="
-echo "Note: Migrations will run in the release phase"
+echo "Note: Static files and migrations will run on app startup"

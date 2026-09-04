@@ -16,11 +16,12 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
 application = get_wsgi_application()
 
-# Run migrations on startup if DATABASE_URL is available
+# Run migrations and collect static files on startup if DATABASE_URL is available
 if os.environ.get('DATABASE_URL'):
     try:
         from django.core.management import call_command
         call_command('migrate', '--noinput', verbosity=0)
+        call_command('collectstatic', '--noinput', verbosity=0)
     except Exception as e:
-        print(f'Migration on startup failed: {e}', file=sys.stderr)
-        # Don't block startup if migrations fail
+        print(f'Startup tasks failed: {e}', file=sys.stderr)
+        # Don't block startup if tasks fail
