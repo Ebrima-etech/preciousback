@@ -82,15 +82,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASE_URL = os.environ.get('DATABASE_URL') or config('DATABASE_URL', default=None)
-
-if DATABASE_URL:
-    # Use DATABASE_URL from environment (Render, Heroku, etc.)
+# Production: Neon PostgreSQL
+if IS_PRODUCTION:
     DATABASES = {
-        'default': dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
+        'default': dj_database_url.config(
+            default='postgresql://neondb_owner:npg_qgujRL2G7oFZ@ep-falling-dust-axxbaofs-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+            conn_max_age=600
+        )
     }
-elif not IS_PRODUCTION:
-    # Local development only - never fallback in production
+else:
+    # Local development
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -101,8 +102,6 @@ elif not IS_PRODUCTION:
             'PORT': '5432',
         }
     }
-else:
-    raise RuntimeError('DATABASE_URL environment variable not set in production')
 
 
 # Password validation
