@@ -8,37 +8,31 @@ psycopg2-binary==2.9.12
 
 # API & Auth
 django-cors-headers==4.3.1
-djangorestframework-simplejwt==5.3.2
-PyJWT==2.13.0
+djangorestframework-simplejwt==5.3.1
+PyJWT==2.8.1
 
 # Filtering & Pagination
-django-filter==24.2
+django-filter==23.5
 
 # Image Processing
-Pillow==12.3.0
-
-# Payment Processing (removed - not using)
+Pillow==10.1.0
 
 # Async Tasks
-celery==5.6.3
-redis==8.1.0
+celery==5.3.4
+redis==5.0.1
 
 # Monitoring & Logging
-sentry-sdk==1.43.0
+sentry-sdk==1.39.1
 
 # Production Server
 gunicorn==21.2.0
 whitenoise==6.6.0
 
 # Security
-django-cors-headers==4.3.1
 django-ratelimit==4.1.0
 
 # Caching & Performance
 django-redis==5.4.0
-
-# Admin Enhancements
-django-admin-interface==0.25.1
 
 # Environment Management
 python-dotenv==1.0.0
