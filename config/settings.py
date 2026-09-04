@@ -11,22 +11,14 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
-from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-cflbg93m8f$!2)jys@09xf6p3w)_db7sr6+oxes8%__##)7_*o')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
-
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+# HARDCODED SETTINGS
+SECRET_KEY = 'django-insecure-plasticprecious-demo-key-12345-change-in-production'
+DEBUG = True
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -86,11 +78,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='plasticprecious'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='postgres'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+        'NAME': 'plasticprecious',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -135,7 +127,7 @@ STATIC_URL = 'static/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.User'
@@ -167,25 +159,25 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3001',
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
 # Stripe Configuration
-STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
-STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_SECRET_KEY = 'sk_test_demo_key_12345'
+STRIPE_PUBLISHABLE_KEY = 'pk_test_demo_key_12345'
 
 # Media Files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Production Settings
-ENVIRONMENT = config('ENVIRONMENT', default='development')
-IS_PRODUCTION = ENVIRONMENT == 'production'
+ENVIRONMENT = 'development'
+IS_PRODUCTION = False
 
 if IS_PRODUCTION:
     # Security
@@ -206,18 +198,8 @@ if IS_PRODUCTION:
     CSRF_COOKIE_HTTPONLY = True
     SESSION_COOKIE_HTTPONLY = True
 
-    # Sentry Error Tracking
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-
-    SENTRY_DSN = config('SENTRY_DSN', default='')
-    if SENTRY_DSN:
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            integrations=[DjangoIntegration()],
-            traces_sample_rate=0.1,
-            send_default_pii=False,
-        )
+    # Sentry Error Tracking (disabled in demo)
+    # SENTRY_DSN = 'https://your-key@sentry.io/your-project-id'
 
 # Static Files Configuration
 STATIC_URL = '/static/'
@@ -282,39 +264,16 @@ LOGGING = {
 }
 
 # Cache Configuration
-if IS_PRODUCTION:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'SOCKET_CONNECT_TIMEOUT': 5,
-                'SOCKET_TIMEOUT': 5,
-                'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            }
-        }
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'default'
-else:
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-            'LOCATION': 'unique-snowflake',
-        }
-    }
+}
 
-# Celery Configuration (Production)
-if IS_PRODUCTION:
-    CELERY_BROKER_URL = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
-    CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://127.0.0.1:6379/0')
-    CELERY_ACCEPT_CONTENT = ['json']
-    CELERY_TASK_SERIALIZER = 'json'
-    CELERY_RESULT_SERIALIZER = 'json'
-    CELERY_TIMEZONE = 'UTC'
-    CELERY_TASK_TRACK_STARTED = True
-    CELERY_TASK_TIME_LIMIT = 30 * 60
+# Celery Configuration (disabled in demo)
+# CELERY_BROKER_URL = 'redis://127.0.0.1:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/0'
 
 # REST Framework Production Settings
 if IS_PRODUCTION:
