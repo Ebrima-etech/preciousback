@@ -82,15 +82,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASE_URL = config('DATABASE_URL', default=None)
+DATABASE_URL = os.environ.get('DATABASE_URL') or config('DATABASE_URL', default=None)
 
 if DATABASE_URL:
     # Use DATABASE_URL from environment (Render, Heroku, etc.)
     DATABASES = {
         'default': dj_database_url.config(default=DATABASE_URL, conn_max_age=600)
     }
-else:
-    # Local development
+elif not IS_PRODUCTION:
+    # Local development only - never fallback in production
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
@@ -101,6 +101,8 @@ else:
             'PORT': '5432',
         }
     }
+else:
+    raise RuntimeError('DATABASE_URL environment variable not set in production')
 
 
 # Password validation

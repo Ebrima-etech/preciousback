@@ -18,4 +18,4 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: postgresql://neondb_owner:npg_qgujRL2G7oFZ@ep-falling-dust-axxbaofs-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+        value: 'postgresql://neondb_owner:npg_qgujRL2G7oFZ@ep-falling-dust-axxbaofs-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
