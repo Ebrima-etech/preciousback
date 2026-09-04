@@ -167,9 +167,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Stripe Configuration
-STRIPE_SECRET_KEY = 'sk_test_demo_key_12345'
-STRIPE_PUBLISHABLE_KEY = 'pk_test_demo_key_12345'
+# Stripe Configuration (removed - not using)
 
 # Media Files
 MEDIA_URL = '/media/'

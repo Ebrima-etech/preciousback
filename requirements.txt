@@ -18,8 +18,7 @@ django-filter==24.2
 # Image Processing
 Pillow==12.3.0
 
-# Payment Processing
-stripe==15.6.1
+# Payment Processing (removed - not using)
 
 # Async Tasks
 celery==5.6.3
