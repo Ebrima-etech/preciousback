@@ -9,7 +9,7 @@ psycopg2-binary==2.9.12
 # API & Auth
 django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.1
-PyJWT==2.8.1
+PyJWT==2.13.0
 
 # Filtering & Pagination
 django-filter==23.5
