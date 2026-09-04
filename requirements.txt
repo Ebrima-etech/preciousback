@@ -5,7 +5,6 @@ python-decouple==3.8
 
 # Database
 psycopg2-binary==2.9.12
-django-db-multitenant==2.7.0
 
 # API & Auth
 django-cors-headers==4.3.1
