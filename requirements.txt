@@ -1,11 +1,49 @@
+# Core
 Django==6.1.1
 djangorestframework==3.18.0
+python-decouple==3.8
+
+# Database
+psycopg2-binary==2.9.12
+django-db-multitenant==2.7.0
+
+# API & Auth
 django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.2
-python-decouple==3.8
-psycopg2-binary==2.9.12
+PyJWT==2.13.0
+
+# Filtering & Pagination
+django-filter==24.2
+
+# Image Processing
 Pillow==12.3.0
+
+# Payment Processing
 stripe==15.6.1
+
+# Async Tasks
 celery==5.6.3
 redis==8.1.0
-django-filter==24.2
+
+# Monitoring & Logging
+sentry-sdk==1.43.0
+
+# Production Server
+gunicorn==21.2.0
+whitenoise==6.6.0
+
+# Security
+django-cors-headers==4.3.1
+django-ratelimit==4.1.0
+
+# Caching & Performance
+django-redis==5.4.0
+
+# Admin Enhancements
+django-admin-interface==0.25.1
+
+# Environment Management
+python-dotenv==1.0.0
+
+# Health Checks
+django-health-check==3.18.1
