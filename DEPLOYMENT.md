@@ -6,7 +6,6 @@
 - GitHub repository connected to Render
 - PostgreSQL database (Render provides free tier)
 - Redis instance (optional, for caching)
-- Stripe account for payments
 - Sentry account for error tracking (optional)
 
 ### Frontend Deployment (Vercel)
@@ -25,7 +24,6 @@ git push origin main
 3. **Environment Variables (Vercel)**
 ```
 NEXT_PUBLIC_API_URL=https://your-api.onrender.com/api
-NEXT_PUBLIC_STRIPE_PUBLIC_KEY=pk_live_your_key
 ```
 
 4. **Deploy**
@@ -60,8 +58,6 @@ SECRET_KEY=your-secret-key-here
 ALLOWED_HOSTS=your-api.onrender.com,yourdomain.com
 DATABASE_URL=postgres://user:password@host:5432/dbname
 CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-STRIPE_SECRET_KEY=sk_live_your_key
-STRIPE_PUBLISHABLE_KEY=pk_live_your_key
 REDIS_URL=redis://your-redis-url:6379/0
 SENTRY_DSN=your-sentry-dsn
 ```
@@ -92,11 +88,7 @@ python manage.py shell
 - Configure SMTP credentials in environment variables
 - Test email sending
 
-#### 4. Configure Stripe
-- Add live API keys to environment variables
-- Set up webhook endpoints in Stripe dashboard
-
-#### 5. Set Up Monitoring
+#### 4. Set Up Monitoring
 - Add Sentry DSN for error tracking
 - Configure health check: `https://your-api.onrender.com/api/health/`
 
