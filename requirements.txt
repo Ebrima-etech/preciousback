@@ -12,7 +12,7 @@ djangorestframework-simplejwt==5.3.1
 PyJWT==2.13.0
 
 # Filtering & Pagination
-django-filter==23.5
+django-filter==24.3
 
 # Image Processing
 Pillow==11.0.0
