@@ -19,7 +19,7 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Environment
-ENVIRONMENT = config('ENVIRONMENT', default='development')
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development')
 IS_PRODUCTION = ENVIRONMENT == 'production'
 
 # HARDCODED SETTINGS
