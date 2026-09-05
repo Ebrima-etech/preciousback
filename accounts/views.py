@@ -4,22 +4,30 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+import logging
 from .models import User, Address
 from .serializers import UserSerializer, AddressSerializer, RegisterSerializer, LoginSerializer
+
+logger = logging.getLogger(__name__)
 
 class AuthViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def register(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'user': UserSerializer(user).data,
-                'access': str(refresh.access_token),
-                'refresh': str(refresh),
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = RegisterSerializer(data=request.data)
+            if serializer.is_valid():
+                user = serializer.save()
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    'user': UserSerializer(user).data,
+                    'access': str(refresh.access_token),
+                    'refresh': str(refresh),
+                }, status=status.HTTP_201_CREATED)
+            logger.error(f'Registration validation error: {serializer.errors}')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Registration error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
