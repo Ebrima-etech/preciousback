@@ -190,10 +190,6 @@ CORS_ALLOW_CREDENTIALS = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Production Settings
-ENVIRONMENT = 'development'
-IS_PRODUCTION = False
-
 if IS_PRODUCTION:
     # Security
     SECURE_SSL_REDIRECT = True
