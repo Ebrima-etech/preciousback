@@ -28,6 +28,12 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'price', 'rating']
     ordering = ['-created_at']
 
+    def get_permissions(self):
+        # Allow read access to all, write access only to authenticated users
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ProductDetailSerializer
