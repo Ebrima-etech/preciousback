@@ -31,21 +31,31 @@ class AuthViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data['email']
-            password = serializer.validated_data['password']
-            user = authenticate(username=email, password=password)
+        try:
+            serializer = LoginSerializer(data=request.data)
+            if serializer.is_valid():
+                email = serializer.validated_data['email']
+                password = serializer.validated_data['password']
 
-            if user:
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    'user': UserSerializer(user).data,
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh),
-                })
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Try to get user by email and verify password
+                try:
+                    user = User.objects.get(email=email)
+                    if user.check_password(password):
+                        refresh = RefreshToken.for_user(user)
+                        return Response({
+                            'user': UserSerializer(user).data,
+                            'access': str(refresh.access_token),
+                            'refresh': str(refresh),
+                        })
+                except User.DoesNotExist:
+                    pass
+
+                return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+            logger.error(f'Login validation error: {serializer.errors}')
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Login error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request):

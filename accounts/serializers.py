@@ -38,14 +38,3 @@ class RegisterSerializer(serializers.ModelSerializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
-
-        if email and password:
-            user = authenticate(email=email, password=password)
-            if not user:
-                msg = 'Invalid credentials.'
-                raise serializers.ValidationError(msg, code='authentication')
-        return data
