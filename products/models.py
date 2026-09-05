@@ -20,7 +20,7 @@ class Product(models.Model):
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    image = models.ImageField(upload_to='products/')
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
     stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(5)])
     reviews_count = models.IntegerField(default=0)
