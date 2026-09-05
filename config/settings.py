@@ -82,26 +82,13 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-# Production: Neon PostgreSQL
-if IS_PRODUCTION:
-    DATABASES = {
-        'default': dj_database_url.config(
-            default='postgresql://neondb_owner:npg_qgujRL2G7oFZ@ep-falling-dust-axxbaofs-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
-            conn_max_age=600
-        )
-    }
-else:
-    # Local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'plasticprecious',
-            'USER': 'postgres',
-            'PASSWORD': 'postgres',
-            'HOST': 'localhost',
-            'PORT': '5432',
-        }
-    }
+# Always try Neon first, fall back to localhost for local dev
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL') or 'postgresql://postgres:postgres@localhost:5432/plasticprecious',
+        conn_max_age=600
+    )
+}
 
 
 # Password validation
