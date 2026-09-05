@@ -25,5 +25,16 @@ print(f'Using database: {settings.DATABASES["default"].get("HOST", "N/A")}', fil
 
 application = get_wsgi_application()
 
-# Migrations disabled temporarily - app must start first
-print('Database config loaded. App is ready.', file=sys.stderr)
+# Run migrations on startup
+if os.environ.get('DATABASE_URL'):
+    try:
+        from django.core.management import call_command
+        print('Running migrations...', file=sys.stderr)
+        call_command('migrate', '--noinput', verbosity=1)
+        print('Migrations completed successfully', file=sys.stderr)
+    except Exception as e:
+        print(f'Migrations failed: {e}', file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+else:
+    print('DATABASE_URL not set - skipping migrations', file=sys.stderr)
