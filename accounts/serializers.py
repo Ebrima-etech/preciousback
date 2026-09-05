@@ -30,6 +30,20 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+
+        # Auto-generate username from first and last name
+        first_name = validated_data.get('first_name', '').lower()
+        last_name = validated_data.get('last_name', '').lower()
+        base_username = f"{first_name}.{last_name}"
+
+        # Ensure username is unique
+        username = base_username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+
+        validated_data['username'] = username
         user = User.objects.create_user(**validated_data)
         return user
 
