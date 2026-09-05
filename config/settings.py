@@ -87,12 +87,25 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
 # Always try Neon first, fall back to localhost for local dev
+db_url = os.environ.get('DATABASE_URL') or 'postgresql://postgres:postgres@localhost:5432/plasticprecious'
+
+# For Neon, remove channel_binding parameter if present (not supported by psycopg2)
+if 'channel_binding=require' in db_url:
+    db_url = db_url.replace('&channel_binding=require', '')
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL') or 'postgresql://postgres:postgres@localhost:5432/plasticprecious',
-        conn_max_age=600
+        default=db_url,
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
+
+# Add SSL options for Neon
+if 'neon' in DATABASES['default'].get('HOST', ''):
+    DATABASES['default']['OPTIONS'] = {
+        'sslmode': 'require',
+    }
 
 
 # Password validation
