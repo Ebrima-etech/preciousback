@@ -2,8 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+import logging
 from .models import Order, Cart, CartItem
 from .serializers import OrderSerializer, CartSerializer, CartItemSerializer
+
+logger = logging.getLogger(__name__)
 
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
@@ -31,42 +34,50 @@ class CartViewSet(viewsets.ViewSet):
 
     def list(self, request):
         try:
-            cart = Cart.objects.get(user=request.user)
-        except Cart.DoesNotExist:
-            cart = Cart.objects.create(user=request.user)
-        serializer = CartSerializer(cart)
-        return Response(serializer.data)
+            try:
+                cart = Cart.objects.get(user=request.user)
+            except Cart.DoesNotExist:
+                cart = Cart.objects.create(user=request.user)
+            serializer = CartSerializer(cart)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f'Cart list error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def add_item(self, request):
         try:
-            cart = Cart.objects.get(user=request.user)
-        except Cart.DoesNotExist:
-            cart = Cart.objects.create(user=request.user)
+            try:
+                cart = Cart.objects.get(user=request.user)
+            except Cart.DoesNotExist:
+                cart = Cart.objects.create(user=request.user)
 
-        serializer = CartItemSerializer(data=request.data)
-        if serializer.is_valid():
-            product_id = serializer.validated_data['product_id']
-            quantity = serializer.validated_data.get('quantity', 1)
+            serializer = CartItemSerializer(data=request.data)
+            if serializer.is_valid():
+                product_id = serializer.validated_data['product_id']
+                quantity = serializer.validated_data.get('quantity', 1)
 
-            cart_item, created = CartItem.objects.get_or_create(
-                cart=cart,
-                product_id=product_id,
-                defaults={'quantity': quantity}
-            )
-            if not created:
-                cart_item.quantity += quantity
-                cart_item.save()
+                cart_item, created = CartItem.objects.get_or_create(
+                    cart=cart,
+                    product_id=product_id,
+                    defaults={'quantity': quantity}
+                )
+                if not created:
+                    cart_item.quantity += quantity
+                    cart_item.save()
 
-            return Response(CartSerializer(cart).data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response(CartSerializer(cart).data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f'Add item error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['patch'])
     def update_item(self, request):
-        cart_item_id = request.data.get('cart_item_id')
-        quantity = request.data.get('quantity')
-
         try:
+            cart_item_id = request.data.get('cart_item_id')
+            quantity = request.data.get('quantity')
+
             cart_item = CartItem.objects.get(id=cart_item_id, cart__user=request.user)
             if quantity > 0:
                 cart_item.quantity = quantity
@@ -78,14 +89,19 @@ class CartViewSet(viewsets.ViewSet):
             return Response(CartSerializer(cart).data)
         except CartItem.DoesNotExist:
             return Response({'error': 'Cart item not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f'Update item error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['delete'])
     def remove_item(self, request):
-        cart_item_id = request.data.get('cart_item_id')
-
         try:
+            cart_item_id = request.data.get('cart_item_id')
             CartItem.objects.get(id=cart_item_id, cart__user=request.user).delete()
             cart = Cart.objects.get(user=request.user)
             return Response(CartSerializer(cart).data)
         except CartItem.DoesNotExist:
             return Response({'error': 'Cart item not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f'Remove item error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
