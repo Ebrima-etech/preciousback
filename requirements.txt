@@ -18,7 +18,7 @@ django-filter==24.3
 # Image Processing
 Pillow==11.0.0
 cloudinary==1.35.0
-django-cloudinary-storage==0.3.10
+django-cloudinary-storage==0.3.0
 
 # Async Tasks
 celery==5.3.4
