@@ -36,7 +36,7 @@ def upload_image(request):
         # Upload to Cloudinary
         result = cloudinary.uploader.upload(
             image_file,
-            folder='plasticprecious/',
+            folder='preciousplastic/',
             resource_type='auto',
             quality='auto',
             fetch_format='auto'
