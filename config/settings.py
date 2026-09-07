@@ -208,6 +208,7 @@ cloudinary.config(
 
 # Debug: Log which storage is being used
 print(f"[CLOUDINARY DEBUG] CLOUD_NAME set: {bool(CLOUDINARY_CLOUD_NAME)}")
+print(f"[CLOUDINARY DEBUG] CLOUD_NAME value: '{CLOUDINARY_CLOUD_NAME}'")
 print(f"[CLOUDINARY DEBUG] API_KEY set: {bool(CLOUDINARY_API_KEY)}")
 print(f"[CLOUDINARY DEBUG] API_SECRET set: {bool(CLOUDINARY_API_SECRET)}")
 
@@ -216,10 +217,13 @@ if CLOUDINARY_CLOUD_NAME:
     print("[CLOUDINARY DEBUG] Using Cloudinary storage")
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     MEDIA_URL = '/media/'
+    print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE set to: {DEFAULT_FILE_STORAGE}")
 else:
     print("[CLOUDINARY DEBUG] Using local file storage (fallback)")
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+    print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE set to: {DEFAULT_FILE_STORAGE}")
 
 if IS_PRODUCTION:
     # Security
@@ -332,3 +336,6 @@ HEALTH_CHECK = {
 ADMIN_SITE_HEADER = 'Plasticprecious Admin'
 ADMIN_SITE_TITLE = 'Plasticprecious'
 ADMIN_INDEX_TITLE = 'Welcome to Plasticprecious Admin'
+
+# Final verification of storage backend
+print(f"[CLOUDINARY DEBUG] FINAL DEFAULT_FILE_STORAGE: {DEFAULT_FILE_STORAGE}")
