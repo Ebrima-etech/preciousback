@@ -5,9 +5,6 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Product, Category, ProductReview
 from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer
-import logging
-
-logger = logging.getLogger(__name__)
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -42,53 +39,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             return ProductDetailSerializer
         return ProductSerializer
 
-    def create(self, request, *args, **kwargs):
-        try:
-            print(f"[UPLOAD] Creating product with image: {request.FILES.get('image', 'No image')}")
-            from django.core.files.storage import default_storage
-            print(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
-
-            # Test if Cloudinary is accessible
-            try:
-                import cloudinary
-                print(f"[UPLOAD] Cloudinary config - cloud_name: {cloudinary.config().cloud_name}")
-            except Exception as e:
-                print(f"[UPLOAD] Cloudinary config error: {str(e)}")
-
-            response = super().create(request, *args, **kwargs)
-
-            # Check what was saved
-            if response.data.get('image'):
-                print(f"[UPLOAD] Product created with image URL: {response.data.get('image')}")
-
-            return response
-        except Exception as e:
-            print(f"[UPLOAD] Error creating product: {str(e)}")
-            raise
-
-    def update(self, request, *args, **kwargs):
-        try:
-            print(f"[UPLOAD] Updating product with image: {request.FILES.get('image', 'No image')}")
-            from django.core.files.storage import default_storage
-            print(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
-
-            # Test if Cloudinary is accessible
-            try:
-                import cloudinary
-                print(f"[UPLOAD] Cloudinary config - cloud_name: {cloudinary.config().cloud_name}")
-            except Exception as e:
-                print(f"[UPLOAD] Cloudinary config error: {str(e)}")
-
-            response = super().update(request, *args, **kwargs)
-
-            # Check what was saved
-            if response.data.get('image'):
-                print(f"[UPLOAD] Product updated with image URL: {response.data.get('image')}")
-
-            return response
-        except Exception as e:
-            print(f"[UPLOAD] Error updating product: {str(e)}")
-            raise
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_review(self, request, pk=None):
