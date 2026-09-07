@@ -47,7 +47,21 @@ class ProductViewSet(viewsets.ModelViewSet):
             logger.info(f"[UPLOAD] Creating product with image: {request.FILES.get('image', 'No image')}")
             from django.core.files.storage import default_storage
             logger.info(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
-            return super().create(request, *args, **kwargs)
+
+            # Test if Cloudinary is accessible
+            try:
+                import cloudinary
+                logger.info(f"[UPLOAD] Cloudinary config - cloud_name: {cloudinary.config().cloud_name}")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Cloudinary config error: {str(e)}")
+
+            response = super().create(request, *args, **kwargs)
+
+            # Check what was saved
+            if response.data.get('image'):
+                logger.info(f"[UPLOAD] Product created with image URL: {response.data.get('image')}")
+
+            return response
         except Exception as e:
             logger.error(f"[UPLOAD] Error creating product: {str(e)}", exc_info=True)
             raise
@@ -57,7 +71,21 @@ class ProductViewSet(viewsets.ModelViewSet):
             logger.info(f"[UPLOAD] Updating product with image: {request.FILES.get('image', 'No image')}")
             from django.core.files.storage import default_storage
             logger.info(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
-            return super().update(request, *args, **kwargs)
+
+            # Test if Cloudinary is accessible
+            try:
+                import cloudinary
+                logger.info(f"[UPLOAD] Cloudinary config - cloud_name: {cloudinary.config().cloud_name}")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Cloudinary config error: {str(e)}")
+
+            response = super().update(request, *args, **kwargs)
+
+            # Check what was saved
+            if response.data.get('image'):
+                logger.info(f"[UPLOAD] Product updated with image URL: {response.data.get('image')}")
+
+            return response
         except Exception as e:
             logger.error(f"[UPLOAD] Error updating product: {str(e)}", exc_info=True)
             raise
