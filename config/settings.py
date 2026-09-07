@@ -195,6 +195,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Cloudinary Configuration
 import cloudinary
+from cloudinary_storage.storage import MediaCloudinaryStorage
 
 CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
 CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
@@ -215,7 +216,7 @@ print(f"[CLOUDINARY DEBUG] API_SECRET set: {bool(CLOUDINARY_API_SECRET)}")
 # Media Files
 if CLOUDINARY_CLOUD_NAME:
     print("[CLOUDINARY DEBUG] Using Cloudinary storage")
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    DEFAULT_FILE_STORAGE = MediaCloudinaryStorage
     MEDIA_URL = '/media/'
     print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE set to: {DEFAULT_FILE_STORAGE}")
 else:
