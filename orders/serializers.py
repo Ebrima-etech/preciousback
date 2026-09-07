@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from decimal import Decimal
 from .models import Order, OrderItem, Cart, CartItem
 from products.serializers import ProductSerializer
 
@@ -36,7 +37,10 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ['id', 'items', 'total_price', 'total_items']
 
     def get_total_price(self, obj):
-        return sum(item.product.price * item.quantity for item in obj.items.all())
+        total = Decimal('0')
+        for item in obj.items.all():
+            total += item.product.price * item.quantity
+        return str(total)
 
     def get_total_items(self, obj):
         return obj.items.count()

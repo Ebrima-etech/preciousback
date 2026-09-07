@@ -105,3 +105,15 @@ class CartViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.error(f'Remove item error: {str(e)}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def clear(self, request):
+        try:
+            cart = Cart.objects.get(user=request.user)
+            cart.items.all().delete()
+            return Response({'success': 'Cart cleared'}, status=status.HTTP_200_OK)
+        except Cart.DoesNotExist:
+            return Response({'success': 'Cart cleared'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Clear cart error: {str(e)}', exc_info=True)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
