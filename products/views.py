@@ -5,6 +5,9 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Product, Category, ProductReview
 from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -38,6 +41,26 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.action == 'retrieve':
             return ProductDetailSerializer
         return ProductSerializer
+
+    def create(self, request, *args, **kwargs):
+        try:
+            logger.info(f"[UPLOAD] Creating product with image: {request.FILES.get('image', 'No image')}")
+            from django.core.files.storage import default_storage
+            logger.info(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"[UPLOAD] Error creating product: {str(e)}", exc_info=True)
+            raise
+
+    def update(self, request, *args, **kwargs):
+        try:
+            logger.info(f"[UPLOAD] Updating product with image: {request.FILES.get('image', 'No image')}")
+            from django.core.files.storage import default_storage
+            logger.info(f"[UPLOAD] Default storage backend: {default_storage.__class__.__module__}.{default_storage.__class__.__name__}")
+            return super().update(request, *args, **kwargs)
+        except Exception as e:
+            logger.error(f"[UPLOAD] Error updating product: {str(e)}", exc_info=True)
+            raise
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_review(self, request, pk=None):

@@ -206,11 +206,18 @@ cloudinary.config(
     api_secret=CLOUDINARY_API_SECRET
 )
 
+# Debug: Log which storage is being used
+print(f"[CLOUDINARY DEBUG] CLOUD_NAME set: {bool(CLOUDINARY_CLOUD_NAME)}")
+print(f"[CLOUDINARY DEBUG] API_KEY set: {bool(CLOUDINARY_API_KEY)}")
+print(f"[CLOUDINARY DEBUG] API_SECRET set: {bool(CLOUDINARY_API_SECRET)}")
+
 # Media Files
 if CLOUDINARY_CLOUD_NAME:
+    print("[CLOUDINARY DEBUG] Using Cloudinary storage")
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
     MEDIA_URL = '/media/'
 else:
+    print("[CLOUDINARY DEBUG] Using local file storage (fallback)")
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
 
