@@ -195,7 +195,6 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Cloudinary Configuration
 import cloudinary
-from cloudinary_storage.storage import MediaCloudinaryStorage
 
 CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
 CLOUDINARY_API_KEY = config('CLOUDINARY_API_KEY', default='')
@@ -213,18 +212,25 @@ print(f"[CLOUDINARY DEBUG] CLOUD_NAME value: '{CLOUDINARY_CLOUD_NAME}'")
 print(f"[CLOUDINARY DEBUG] API_KEY set: {bool(CLOUDINARY_API_KEY)}")
 print(f"[CLOUDINARY DEBUG] API_SECRET set: {bool(CLOUDINARY_API_SECRET)}")
 
-# Media Files
-if CLOUDINARY_CLOUD_NAME:
-    print("[CLOUDINARY DEBUG] Using Cloudinary storage")
-    DEFAULT_FILE_STORAGE = MediaCloudinaryStorage
-    MEDIA_URL = '/media/'
-    print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE set to: {DEFAULT_FILE_STORAGE}")
+# Media Files - Always use Cloudinary if credentials exist
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    print("[CLOUDINARY DEBUG] All credentials present, attempting Cloudinary storage")
+    try:
+        from cloudinary_storage.storage import MediaCloudinaryStorage
+        DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+        MEDIA_URL = 'https://res.cloudinary.com/{}/image/upload/'.format(CLOUDINARY_CLOUD_NAME)
+        print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE: {DEFAULT_FILE_STORAGE}")
+        print(f"[CLOUDINARY DEBUG] MEDIA_URL: {MEDIA_URL}")
+    except Exception as e:
+        print(f"[CLOUDINARY DEBUG] Error importing Cloudinary storage: {str(e)}")
+        DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+        MEDIA_URL = '/media/'
+        MEDIA_ROOT = BASE_DIR / 'media'
 else:
     print("[CLOUDINARY DEBUG] Using local file storage (fallback)")
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
-    print(f"[CLOUDINARY DEBUG] DEFAULT_FILE_STORAGE set to: {DEFAULT_FILE_STORAGE}")
 
 if IS_PRODUCTION:
     # Security
