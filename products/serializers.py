@@ -15,6 +15,12 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'created_at']
         read_only_fields = ['id', 'created_at', 'rating', 'reviews_count']
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.image:
+            representation['image'] = instance.image.url
+        return representation
+
 class ProductDetailSerializer(ProductSerializer):
     reviews = serializers.SerializerMethodField()
 
