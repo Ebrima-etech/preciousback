@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from products.views import ProductViewSet, CategoryViewSet, ProductReviewViewSet
-from orders.views import OrderViewSet, CartViewSet, CreatePaymentView
+from orders.views import OrderViewSet, CartViewSet
 from accounts.views import AuthViewSet, UserViewSet, AddressViewSet
 from payments.views import PaymentViewSet
 from payments.webhooks import ModemPayWebhookView
@@ -44,7 +44,6 @@ router.register(r'features', FeatureViewSet, basename='feature')
 router.register(r'site-settings', SiteSettingsViewSet, basename='site-settings')
 
 urlpatterns = [
-    path('orders/create-payment/', CreatePaymentView.as_view(), name='create-payment'),
-    path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
     path('', include(router.urls)),
+    path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
 ]

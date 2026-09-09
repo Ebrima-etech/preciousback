@@ -34,6 +34,84 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['post'])
+    def create_payment(self, request):
+        """Create a payment intent for Wave checkout"""
+        try:
+            data = request.data
+
+            # Validate required fields
+            required_fields = ['total_amount', 'deliver_to', 'contact_number', 'delivery_location', 'items', 'return_url', 'cancel_url']
+            for field in required_fields:
+                if field not in data:
+                    return Response(
+                        {'error': f'Missing required field: {field}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Create order with transaction
+            with transaction.atomic():
+                # Create order
+                order = Order.objects.create(
+                    user=request.user,
+                    total_price=data['total_amount'],
+                    status='payment_pending',
+                    payment_method='wave',
+                    notes=f"Deliver to: {data['deliver_to']}\nPhone: {data['contact_number']}\nLocation: {data['delivery_location']}"
+                )
+
+                # Create order items
+                for item in data['items']:
+                    OrderItem.objects.create(
+                        order=order,
+                        product_id=item['product_id'],
+                        quantity=item['quantity'],
+                        price=item['price']
+                    )
+
+                # Create payment intent with ModemPay
+                try:
+                    intent = create_payment_intent(
+                        amount=float(data['total_amount']),
+                        currency='GMD',
+                        customer_email=request.user.email or '',
+                        customer_name=request.user.first_name or request.user.username,
+                        customer_phone=data['contact_number'],
+                        return_url=data['return_url'],
+                        cancel_url=data['cancel_url'],
+                        metadata={'order_id': str(order.id)}
+                    )
+                except ModemPayError as e:
+                    logger.error(f'ModemPay error for order {order.id}: {str(e)}')
+                    order.delete()
+                    return Response(
+                        {'error': str(e)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Store payment reference
+                order.payment_reference = intent.get('payment_intent_id', '')
+                order.save()
+
+                # Clear user's cart
+                try:
+                    cart = Cart.objects.get(user=request.user)
+                    cart.items.all().delete()
+                except Cart.DoesNotExist:
+                    pass
+
+                return Response({
+                    'order_id': str(order.id),
+                    'checkout_url': intent['payment_link']
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            logger.error(f'Payment creation error: {str(e)}', exc_info=True)
+            return Response(
+                {'error': 'Failed to create payment'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -122,84 +200,3 @@ class CartViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.error(f'Clear cart error: {str(e)}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class CreatePaymentView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        """Create a payment intent for Wave checkout"""
-        try:
-            data = request.data
-
-            # Validate required fields
-            required_fields = ['total_amount', 'deliver_to', 'contact_number', 'delivery_location', 'items', 'return_url', 'cancel_url']
-            for field in required_fields:
-                if field not in data:
-                    return Response(
-                        {'error': f'Missing required field: {field}'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-            # Create order with transaction
-            with transaction.atomic():
-                # Create order
-                order = Order.objects.create(
-                    user=request.user,
-                    total_price=data['total_amount'],
-                    status='payment_pending',
-                    payment_method='wave',
-                    notes=f"Deliver to: {data['deliver_to']}\nPhone: {data['contact_number']}\nLocation: {data['delivery_location']}"
-                )
-
-                # Create order items
-                for item in data['items']:
-                    OrderItem.objects.create(
-                        order=order,
-                        product_id=item['product_id'],
-                        quantity=item['quantity'],
-                        price=item['price']
-                    )
-
-                # Create payment intent with ModemPay
-                try:
-                    intent = create_payment_intent(
-                        amount=float(data['total_amount']),
-                        currency='GMD',
-                        customer_email=request.user.email or '',
-                        customer_name=request.user.first_name or request.user.username,
-                        customer_phone=data['contact_number'],
-                        return_url=data['return_url'],
-                        cancel_url=data['cancel_url'],
-                        metadata={'order_id': str(order.id)}
-                    )
-                except ModemPayError as e:
-                    logger.error(f'ModemPay error for order {order.id}: {str(e)}')
-                    order.delete()
-                    return Response(
-                        {'error': str(e)},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-
-                # Store payment reference
-                order.payment_reference = intent.get('payment_intent_id', '')
-                order.save()
-
-                # Clear user's cart
-                try:
-                    cart = Cart.objects.get(user=request.user)
-                    cart.items.all().delete()
-                except Cart.DoesNotExist:
-                    pass
-
-                return Response({
-                    'order_id': str(order.id),
-                    'checkout_url': intent['payment_link']
-                }, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            logger.error(f'Payment creation error: {str(e)}', exc_info=True)
-            return Response(
-                {'error': 'Failed to create payment'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
