@@ -44,7 +44,7 @@ router.register(r'features', FeatureViewSet, basename='feature')
 router.register(r'site-settings', SiteSettingsViewSet, basename='site-settings')
 
 urlpatterns = [
-    path('', include(router.urls)),
     path('orders/create-payment/', CreatePaymentView.as_view(), name='create-payment'),
     path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
+    path('', include(router.urls)),
 ]
