@@ -1,9 +1,10 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from products.views import ProductViewSet, CategoryViewSet, ProductReviewViewSet
-from orders.views import OrderViewSet, CartViewSet
+from orders.views import OrderViewSet, CartViewSet, CreatePaymentView
 from accounts.views import AuthViewSet, UserViewSet, AddressViewSet
 from payments.views import PaymentViewSet
+from payments.webhooks import ModemPayWebhookView
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
     BlogPostViewSet, ServiceViewSet, ContactInformationViewSet,
@@ -44,4 +45,6 @@ router.register(r'site-settings', SiteSettingsViewSet, basename='site-settings')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('orders/create-payment/', CreatePaymentView.as_view(), name='create-payment'),
+    path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
 ]

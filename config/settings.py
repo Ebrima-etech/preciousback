@@ -243,7 +243,6 @@ if IS_PRODUCTION:
 # Static Files Configuration
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage' if IS_PRODUCTION else 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Database Connection Pooling (Production)
 if IS_PRODUCTION and ENVIRONMENT != 'test':

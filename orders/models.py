@@ -5,16 +5,29 @@ from products.models import Product
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
+        ('payment_pending', 'Payment Pending'),
         ('processing', 'Processing'),
         ('shipped', 'Shipped'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
     ]
 
+    PAYMENT_METHOD_CHOICES = [
+        ('wave', 'Wave'),
+        ('cod', 'Cash on Delivery'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='orders')
     shipping_address = models.ForeignKey(Address, on_delete=models.PROTECT, null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='cod'
+    )
+    payment_reference = models.CharField(max_length=255, blank=True, db_index=True)
+    stock_deducted = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
