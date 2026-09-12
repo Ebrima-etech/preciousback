@@ -12,8 +12,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'addresses', 'date_joined']
-        read_only_fields = ['id', 'date_joined']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'addresses', 'date_joined', 'is_staff', 'is_admin']
+        read_only_fields = ['id', 'date_joined', 'is_staff', 'is_admin']
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
