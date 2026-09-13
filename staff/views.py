@@ -31,18 +31,20 @@ class StaffViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
-        
+
         first_name = data.get('first_name', '')
         last_name = data.get('last_name', '')
         email = data.get('email', '')
-        
+        password = data.get('password', '')
+
         if not email:
             return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         if User.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        password = get_random_string(12)
+
+        if not password or len(password) < 6:
+            password = get_random_string(12)
         username = email.split('@')[0] + '_' + get_random_string(4)
         
         user = User.objects.create_user(
