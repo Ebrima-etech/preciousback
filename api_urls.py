@@ -5,6 +5,10 @@ from orders.views import OrderViewSet, CartViewSet
 from accounts.views import AuthViewSet, UserViewSet, AddressViewSet
 from payments.views import PaymentViewSet
 from payments.webhooks import ModemPayWebhookView
+from impact.views import (
+    ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet,
+    NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet
+)
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
     BlogPostViewSet, ServiceViewSet, ContactInformationViewSet,
@@ -29,6 +33,14 @@ router.register(r'addresses', AddressViewSet, basename='address')
 
 # Payments
 router.register(r'payments', PaymentViewSet, basename='payment')
+
+# Impact & Community
+router.register(r'impact/metrics', ImpactMetricViewSet, basename='impact-metric')
+router.register(r'impact/zones', CollectionZoneViewSet, basename='collection-zone')
+router.register(r'impact/events', EventViewSet, basename='event')
+router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-newsletter')
+router.register(r'impact/rfq', BulkRFQViewSet, basename='bulk-rfq')
+router.register(r'impact/sponsorship', SponsorshipViewSet, basename='sponsorship')
 
 # CMS
 router.register(r'pages', PageViewSet, basename='page')
