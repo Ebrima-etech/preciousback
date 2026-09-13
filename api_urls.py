@@ -9,6 +9,7 @@ from impact.views import (
     ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet,
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet
 )
+from staff.views import DepartmentViewSet, StaffViewSet
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
     BlogPostViewSet, ServiceViewSet, ContactInformationViewSet,
@@ -41,6 +42,10 @@ router.register(r'impact/events', EventViewSet, basename='event')
 router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-newsletter')
 router.register(r'impact/rfq', BulkRFQViewSet, basename='bulk-rfq')
 router.register(r'impact/sponsorship', SponsorshipViewSet, basename='sponsorship')
+
+# Staff Management
+router.register(r'staff/departments', DepartmentViewSet, basename='department')
+router.register(r'staff/staff', StaffViewSet, basename='staff')
 
 # CMS
 router.register(r'pages', PageViewSet, basename='page')
