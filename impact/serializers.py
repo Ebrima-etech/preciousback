@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ImpactMetric, CollectionZone, Event, NewsletterSubscription, BulkRFQ, Sponsorship
+from .models import ImpactMetric, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
 
 class ImpactMetricSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,6 +15,12 @@ class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         fields = ['id', 'title', 'date', 'location', 'description', 'spots_available', 'spots_filled']
+
+class EventRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventRegistration
+        fields = ['id', 'name', 'email', 'phone', 'is_confirmed', 'registered_at']
+        read_only_fields = ['id', 'is_confirmed', 'registered_at']
 
 class NewsletterSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:

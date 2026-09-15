@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 class ImpactMetric(models.Model):
     label = models.CharField(max_length=100)
@@ -43,6 +44,23 @@ class Event(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.date}"
+
+
+class EventRegistration(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='event_registrations', null=True, blank=True)
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True)
+    is_confirmed = models.BooleanField(default=False)
+    registered_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('event', 'email')
+        verbose_name_plural = "Event Registrations"
+
+    def __str__(self):
+        return f"{self.name} - {self.event.title}"
 
 
 class NewsletterSubscription(models.Model):
