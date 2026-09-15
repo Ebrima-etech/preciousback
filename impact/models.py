@@ -51,7 +51,8 @@ class EventRegistration(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='event_registrations', null=True, blank=True)
     name = models.CharField(max_length=100)
     email = models.EmailField()
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20)
+    why_join = models.TextField(help_text="Why do you want to join this event?")
     is_confirmed = models.BooleanField(default=False)
     registered_at = models.DateTimeField(auto_now_add=True)
 

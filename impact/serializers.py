@@ -19,7 +19,7 @@ class EventSerializer(serializers.ModelSerializer):
 class EventRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventRegistration
-        fields = ['id', 'name', 'email', 'phone', 'is_confirmed', 'registered_at']
+        fields = ['id', 'name', 'email', 'phone', 'why_join', 'is_confirmed', 'registered_at']
         read_only_fields = ['id', 'is_confirmed', 'registered_at']
 
 class NewsletterSubscriptionSerializer(serializers.ModelSerializer):
