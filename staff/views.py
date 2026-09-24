@@ -15,9 +15,13 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return Department.objects.all()
-        return Department.objects.filter(manager=self.request.user)
+        return Department.objects.all()
+
+    def perform_create(self, serializer):
+        if not serializer.validated_data.get('manager'):
+            serializer.save(manager=self.request.user)
+        else:
+            serializer.save()
 
 class StaffViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.select_related('user', 'department')
@@ -25,9 +29,7 @@ class StaffViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return Staff.objects.select_related('user', 'department')
-        return Staff.objects.filter(user=self.request.user)
+        return Staff.objects.select_related('user', 'department')
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
