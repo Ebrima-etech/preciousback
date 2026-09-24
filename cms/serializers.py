@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from .models import (
     Page, Testimonial, Banner, FAQ, BlogPost, Service,
-    ContactInformation, Newsletter, ContactMessage, Feature, SiteSettings
+    ContactInformation, Newsletter, ContactMessage, Feature, SiteSettings,
+    HeroSlide, TeamMember, Partner
 )
 
 class PageSerializer(serializers.ModelSerializer):
@@ -37,7 +38,7 @@ class BlogPostDetailSerializer(BlogPostSerializer):
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
-        fields = ['id', 'name', 'description', 'icon', 'image', 'order', 'is_active']
+        fields = ['id', 'name', 'description', 'icon', 'image', 'color_from', 'color_to', 'order', 'is_active']
 
 class ContactInformationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -68,3 +69,21 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SiteSettings
         fields = ['id', 'site_name', 'tagline', 'logo', 'favicon', 'default_currency', 'default_language', 'enable_analytics', 'maintenance_mode']
+
+
+class HeroSlideSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HeroSlide
+        fields = ['id', 'title', 'description', 'image_url', 'slide_type', 'show_badge', 'show_heading', 'show_buttons', 'show_description', 'order', 'is_active']
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamMember
+        fields = ['id', 'name', 'role', 'description', 'image', 'image_url', 'order', 'is_active', 'created_at']
+
+
+class PartnerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Partner
+        fields = ['id', 'name', 'logo', 'logo_url', 'order', 'is_active', 'created_at']

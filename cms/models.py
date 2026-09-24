@@ -113,6 +113,8 @@ class Service(models.Model):
     description = models.TextField()
     icon = models.CharField(max_length=50, blank=True)
     image = models.ImageField(upload_to='services/', blank=True)
+    color_from = models.CharField(max_length=20, default='emerald-600', help_text='Tailwind color class for gradient start')
+    color_to = models.CharField(max_length=20, default='teal-600', help_text='Tailwind color class for gradient end')
     order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -213,3 +215,61 @@ class SiteSettings(models.Model):
 
     def __str__(self):
         return self.site_name
+
+
+class HeroSlide(models.Model):
+    SLIDE_TYPES = [
+        ('description', 'Description Slide'),
+        ('main', 'Main Heading Slide'),
+    ]
+
+    title = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)
+    image_url = models.URLField()
+    slide_type = models.CharField(max_length=20, choices=SLIDE_TYPES, default='main')
+    show_badge = models.BooleanField(default=True)
+    show_heading = models.BooleanField(default=True)
+    show_buttons = models.BooleanField(default=True)
+    show_description = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"Hero Slide {self.order + 1}"
+
+
+class TeamMember(models.Model):
+    name = models.CharField(max_length=255)
+    role = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    image = models.ImageField(upload_to='team/', blank=True, null=True)
+    image_url = models.URLField(blank=True)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return f"{self.name} - {self.role}"
+
+
+class Partner(models.Model):
+    name = models.CharField(max_length=255)
+    logo = models.ImageField(upload_to='partners/', blank=True, null=True)
+    logo_url = models.URLField(blank=True)
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'name']
+
+    def __str__(self):
+        return self.name

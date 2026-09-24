@@ -5,13 +5,15 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     Page, Testimonial, Banner, FAQ, BlogPost, Service,
-    ContactInformation, Newsletter, ContactMessage, Feature, SiteSettings
+    ContactInformation, Newsletter, ContactMessage, Feature, SiteSettings,
+    HeroSlide, TeamMember, Partner
 )
 from .serializers import (
     PageSerializer, TestimonialSerializer, BannerSerializer, FAQSerializer,
     BlogPostSerializer, BlogPostDetailSerializer, ServiceSerializer,
     ContactInformationSerializer, NewsletterSerializer, ContactMessageSerializer,
-    ContactMessageCreateSerializer, FeatureSerializer, SiteSettingsSerializer
+    ContactMessageCreateSerializer, FeatureSerializer, SiteSettingsSerializer,
+    HeroSlideSerializer, TeamMemberSerializer, PartnerSerializer
 )
 
 class PageViewSet(viewsets.ModelViewSet):
@@ -171,3 +173,24 @@ class SiteSettingsViewSet(viewsets.ViewSet):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class HeroSlideViewSet(viewsets.ModelViewSet):
+    queryset = HeroSlide.objects.filter(is_active=True)
+    serializer_class = HeroSlideSerializer
+    permission_classes = [AllowAny]
+    ordering = ['order']
+
+
+class TeamMemberViewSet(viewsets.ModelViewSet):
+    queryset = TeamMember.objects.filter(is_active=True)
+    serializer_class = TeamMemberSerializer
+    permission_classes = [AllowAny]
+    ordering = ['order', 'name']
+
+
+class PartnerViewSet(viewsets.ModelViewSet):
+    queryset = Partner.objects.filter(is_active=True)
+    serializer_class = PartnerSerializer
+    permission_classes = [AllowAny]
+    ordering = ['order', 'name']

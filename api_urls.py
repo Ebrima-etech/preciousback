@@ -13,7 +13,8 @@ from staff.views import DepartmentViewSet, StaffViewSet
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
     BlogPostViewSet, ServiceViewSet, ContactInformationViewSet,
-    NewsletterViewSet, ContactMessageViewSet, FeatureViewSet, SiteSettingsViewSet
+    NewsletterViewSet, ContactMessageViewSet, FeatureViewSet, SiteSettingsViewSet,
+    HeroSlideViewSet, TeamMemberViewSet, PartnerViewSet
 )
 
 router = DefaultRouter()
@@ -59,6 +60,9 @@ router.register(r'newsletter', NewsletterViewSet, basename='newsletter')
 router.register(r'contact-messages', ContactMessageViewSet, basename='contact-message')
 router.register(r'features', FeatureViewSet, basename='feature')
 router.register(r'site-settings', SiteSettingsViewSet, basename='site-settings')
+router.register(r'hero-slides', HeroSlideViewSet, basename='hero-slide')
+router.register(r'team-members', TeamMemberViewSet, basename='team-member')
+router.register(r'partners', PartnerViewSet, basename='partner')
 
 urlpatterns = [
     path('', include(router.urls)),
