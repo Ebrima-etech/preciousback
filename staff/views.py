@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
@@ -12,7 +12,11 @@ from .serializers import DepartmentSerializer, StaffSerializer, UserSerializer
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         return Department.objects.all()
@@ -26,7 +30,11 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 class StaffViewSet(viewsets.ModelViewSet):
     queryset = Staff.objects.select_related('user', 'department')
     serializer_class = StaffSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         return Staff.objects.select_related('user', 'department')
