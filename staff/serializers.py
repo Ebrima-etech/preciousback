@@ -8,13 +8,16 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
 
 class DepartmentSerializer(serializers.ModelSerializer):
-    manager_name = serializers.CharField(source='manager.get_full_name', read_only=True)
+    manager_name = serializers.SerializerMethodField()
     staff_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Department
         fields = ['id', 'name', 'description', 'manager', 'manager_name', 'budget_allocation', 'is_active', 'staff_count', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
+
+    def get_manager_name(self, obj):
+        return obj.manager.get_full_name() if obj.manager else None
 
     def get_staff_count(self, obj):
         return obj.staff_members.count()
