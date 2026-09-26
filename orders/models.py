@@ -19,7 +19,7 @@ class Order(models.Model):
         ('cod', 'Cash on Delivery'),
     ]
 
-    order_number = models.CharField(max_length=20, unique=True, db_index=True, default='PP0000000000')
+    order_number = models.CharField(max_length=20, unique=True, db_index=True)
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='orders')
     shipping_address = models.ForeignKey(Address, on_delete=models.PROTECT, null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)

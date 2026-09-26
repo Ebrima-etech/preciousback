@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='order_number',
-            field=models.CharField(db_index=True, default='PP0000000000', max_length=20, unique=True),
+            field=models.CharField(blank=True, db_index=True, default='', max_length=20),
         ),
     ]
