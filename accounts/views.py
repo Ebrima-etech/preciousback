@@ -61,6 +61,12 @@ class AuthViewSet(viewsets.ViewSet):
     def logout(self, request):
         return Response({'detail': 'Successfully logged out'})
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def user(self, request):
+        """Get current authenticated user data"""
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
