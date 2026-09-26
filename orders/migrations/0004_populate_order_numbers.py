@@ -1,15 +1,24 @@
-# Data migration to populate existing orders with order numbers
+# Data migration to populate existing orders with random order numbers
 
 from django.db import migrations
+import secrets
+import string
+
+
+def generate_random_order_number():
+    """Generate a unique random order number in format PPGxxxxxxxxxx"""
+    chars = string.ascii_uppercase + string.digits
+    random_part = ''.join(secrets.choice(chars) for _ in range(12))
+    return f'PPG{random_part}'
 
 
 def populate_order_numbers(apps, schema_editor):
-    """Populate order_number for all existing orders"""
+    """Populate order_number for all existing orders with random numbers"""
     Order = apps.get_model('orders', 'Order')
     for order in Order.objects.all():
         if not order.order_number or order.order_number == '':
-            # Generate PP format: PP + 10 digit number (padded with zeros)
-            order.order_number = f'PP{str(order.id).zfill(10)}'
+            # Generate random order number
+            order.order_number = generate_random_order_number()
             order.save()
 
 

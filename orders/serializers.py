@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from .models import Order, OrderItem, Cart, CartItem
+from .models import Order, OrderItem, Cart, CartItem, generate_order_number
 from products.serializers import ProductSerializer
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -21,10 +21,10 @@ class OrderSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_order_number(self, obj):
-        # Return order_number if it exists, otherwise return formatted ID
+        # Return order_number if it exists, otherwise generate random one
         if hasattr(obj, 'order_number') and obj.order_number:
             return obj.order_number
-        return f'PP{str(obj.id).zfill(10)}'
+        return generate_order_number()
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)

@@ -3,6 +3,15 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from accounts.models import User, Address
 from products.models import Product
+import secrets
+import string
+
+
+def generate_order_number():
+    """Generate a unique random order number in format PPGxxxxxxxxxx (12 random alphanumeric chars)"""
+    chars = string.ascii_uppercase + string.digits
+    random_part = ''.join(secrets.choice(chars) for _ in range(12))
+    return f'PPG{random_part}'
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -77,9 +86,9 @@ class CartItem(models.Model):
 
 
 @receiver(post_save, sender=Order)
-def generate_order_number(sender, instance, created, **kwargs):
-    """Auto-generate order number in PP format when order is created"""
-    if created and instance.order_number == 'PP0000000000':
-        # Generate PP format: PP + 10 digit number (padded with zeros)
-        order_number = f'PP{str(instance.id).zfill(10)}'
+def generate_order_number_signal(sender, instance, created, **kwargs):
+    """Auto-generate random order number when order is created"""
+    if created and not instance.order_number:
+        # Generate unique random order number
+        order_number = generate_order_number()
         Order.objects.filter(id=instance.id).update(order_number=order_number)
