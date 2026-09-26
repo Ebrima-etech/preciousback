@@ -6,20 +6,20 @@ from .models import ImpactMetric, CollectionZone, Event, EventRegistration, News
 from .serializers import (ImpactMetricSerializer, CollectionZoneSerializer, EventSerializer, EventRegistrationSerializer,
                           NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer)
 
-class ImpactMetricViewSet(viewsets.ReadOnlyModelViewSet):
+class ImpactMetricViewSet(viewsets.ModelViewSet):
     queryset = ImpactMetric.objects.all()
     serializer_class = ImpactMetricSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
-class CollectionZoneViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = CollectionZone.objects.filter(active=True)
+class CollectionZoneViewSet(viewsets.ModelViewSet):
+    queryset = CollectionZone.objects.all()
     serializer_class = CollectionZoneSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
-class EventViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Event.objects.filter(is_active=True).order_by('date')
+class EventViewSet(viewsets.ModelViewSet):
+    queryset = Event.objects.all().order_by('date')
     serializer_class = EventSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=True, methods=['post'])
     def register(self, request, pk=None):
