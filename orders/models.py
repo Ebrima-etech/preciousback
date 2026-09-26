@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from accounts.models import User, Address
 from products.models import Product
 
@@ -17,6 +19,7 @@ class Order(models.Model):
         ('cod', 'Cash on Delivery'),
     ]
 
+    order_number = models.CharField(max_length=20, unique=True, db_index=True, default='PP0000000000')
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='orders')
     shipping_address = models.ForeignKey(Address, on_delete=models.PROTECT, null=True, blank=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -71,3 +74,12 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f'{self.product.name} x{self.quantity}'
+
+
+@receiver(post_save, sender=Order)
+def generate_order_number(sender, instance, created, **kwargs):
+    """Auto-generate order number in PP format when order is created"""
+    if created and instance.order_number == 'PP0000000000':
+        # Generate PP format: PP + 10 digit number (padded with zeros)
+        order_number = f'PP{str(instance.id).zfill(10)}'
+        Order.objects.filter(id=instance.id).update(order_number=order_number)

@@ -1,0 +1,18 @@
+# Generated migration for order_number field
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('orders', '0002_order_payment_method_order_payment_reference_and_more'),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='order',
+            name='order_number',
+            field=models.CharField(db_index=True, default='PP0000000000', max_length=20, unique=True),
+        ),
+    ]
