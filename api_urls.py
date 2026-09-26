@@ -6,7 +6,7 @@ from accounts.views import AuthViewSet, UserViewSet, AddressViewSet
 from payments.views import PaymentViewSet
 from payments.webhooks import ModemPayWebhookView
 from impact.views import (
-    ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet,
+    ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet, EventRegistrationViewSet,
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet
 )
 from staff.views import DepartmentViewSet, StaffViewSet
@@ -40,6 +40,7 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 router.register(r'impact/metrics', ImpactMetricViewSet, basename='impact-metric')
 router.register(r'impact/zones', CollectionZoneViewSet, basename='collection-zone')
 router.register(r'impact/events', EventViewSet, basename='event')
+router.register(r'impact/registrations', EventRegistrationViewSet, basename='event-registration')
 router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-newsletter')
 router.register(r'impact/rfq', BulkRFQViewSet, basename='bulk-rfq')
 router.register(r'impact/sponsorship', SponsorshipViewSet, basename='sponsorship')
