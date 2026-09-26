@@ -11,7 +11,9 @@ from .serializers import UserSerializer, AddressSerializer, RegisterSerializer, 
 logger = logging.getLogger(__name__)
 
 class AuthViewSet(viewsets.ViewSet):
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    permission_classes = [AllowAny]
+
+    @action(detail=False, methods=['post'])
     def register(self, request):
         try:
             serializer = RegisterSerializer(data=request.data)
@@ -29,7 +31,7 @@ class AuthViewSet(viewsets.ViewSet):
             logger.error(f'Registration error: {str(e)}', exc_info=True)
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    @action(detail=False, methods=['post'])
     def login(self, request):
         try:
             serializer = LoginSerializer(data=request.data)
