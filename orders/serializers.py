@@ -13,11 +13,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
+    order_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['id', 'order_number', 'user_email', 'total_price', 'status', 'items', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'order_number', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_order_number(self, obj):
+        # Return order_number if it exists, otherwise return formatted ID
+        if hasattr(obj, 'order_number') and obj.order_number:
+            return obj.order_number
+        return f'PP{str(obj.id).zfill(10)}'
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
