@@ -1,0 +1,167 @@
+[
+  {
+    "model": "products.location",
+    "pk": 1,
+    "fields": {
+      "name": "Banjul",
+      "description": "Banjul city and immediate surrounding areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 2,
+    "fields": {
+      "name": "Serekunda",
+      "description": "Serekunda and Greater Banjul area",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 3,
+    "fields": {
+      "name": "Bakau",
+      "description": "Bakau and coastal areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 4,
+    "fields": {
+      "name": "Fajara",
+      "description": "Fajara and residential areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 5,
+    "fields": {
+      "name": "Kotu",
+      "description": "Kotu and tourist areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 6,
+    "fields": {
+      "name": "Brufut",
+      "description": "Brufut and rural areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 7,
+    "fields": {
+      "name": "Lamin",
+      "description": "Lamin and eastern areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 8,
+    "fields": {
+      "name": "Gunjur",
+      "description": "Gunjur and southern beach areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 9,
+    "fields": {
+      "name": "Sanyang",
+      "description": "Sanyang and southern coast",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 10,
+    "fields": {
+      "name": "Kartong",
+      "description": "Kartong and Senegal border areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 11,
+    "fields": {
+      "name": "Brikama",
+      "description": "Brikama city and western regions",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 12,
+    "fields": {
+      "name": "Mandinari",
+      "description": "Mandinari and central areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 13,
+    "fields": {
+      "name": "Kaur",
+      "description": "Kaur and northern areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 14,
+    "fields": {
+      "name": "Basse",
+      "description": "Basse and eastern regions",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  },
+  {
+    "model": "products.location",
+    "pk": 15,
+    "fields": {
+      "name": "Farafenni",
+      "description": "Farafenni and north bank areas",
+      "is_active": true,
+      "created_at": "2026-09-27T00:00:00Z",
+      "updated_at": "2026-09-27T00:00:00Z"
+    }
+  }
+]
