@@ -4,7 +4,7 @@ from .models import Product, Category, ProductReview, Voucher, Discount, Locatio
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
-        fields = ['id', 'name', 'description', 'is_active', 'created_at']
+        fields = ['id', 'name', 'description', 'default_delivery_price', 'is_active', 'created_at']
         read_only_fields = ['id', 'created_at']
 
 class CategorySerializer(serializers.ModelSerializer):
