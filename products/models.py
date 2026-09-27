@@ -1,7 +1,6 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from django.contrib.postgres.fields import JSONField
 
 class Location(models.Model):
     """Delivery locations for the store"""
@@ -43,7 +42,7 @@ class Product(models.Model):
     reviews_count = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     # Delivery prices by location: {location_id: price}
-    delivery_prices = JSONField(default=dict, blank=True, help_text="Delivery prices per location as {location_id: price}")
+    delivery_prices = models.JSONField(default=dict, blank=True, help_text="Delivery prices per location as {location_id: price}")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
