@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Category, ProductReview, Voucher, Discount, Location, ProductImage
+from .models import Product, Category, ProductReview, Voucher, Discount, Location, ProductImage, Contact
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -95,3 +95,10 @@ class DiscountSerializer(serializers.ModelSerializer):
 
     def get_is_valid(self, obj):
         return obj.is_valid()
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['id', 'full_name', 'email', 'phone_number', 'subject', 'message', 'status', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'status', 'created_at', 'updated_at']

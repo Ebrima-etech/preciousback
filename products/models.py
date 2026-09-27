@@ -155,3 +155,28 @@ class Discount(models.Model):
         if self.valid_until and now > self.valid_until:
             return False
         return True
+
+
+class Contact(models.Model):
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('read', 'Read'),
+        ('replied', 'Replied'),
+        ('resolved', 'Resolved'),
+    ]
+
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=20, blank=True)
+    subject = models.CharField(max_length=255)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Contacts'
+
+    def __str__(self):
+        return f'{self.full_name} - {self.subject}'

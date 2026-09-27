@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Product, Category, ProductReview, Voucher, Discount, Location
-from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer, VoucherSerializer, DiscountSerializer, LocationSerializer
+from .models import Product, Category, ProductReview, Voucher, Discount, Location, Contact
+from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer, VoucherSerializer, DiscountSerializer, LocationSerializer, ContactSerializer
 
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.filter(is_active=True)
@@ -108,3 +108,20 @@ class DiscountViewSet(viewsets.ModelViewSet):
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'discount_value']
     ordering = ['-created_at']
+
+
+class ContactViewSet(viewsets.ModelViewSet):
+    queryset = Contact.objects.all()
+    serializer_class = ContactSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'created_at']
+    search_fields = ['full_name', 'email', 'subject', 'message']
+    ordering_fields = ['created_at', 'status']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        # Allow creating contacts without authentication
+        if self.request.method == 'POST':
+            return [AllowAny()]
+        return [IsAuthenticated()]
