@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Product, Category, ProductReview
-from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer
+from .models import Product, Category, ProductReview, Voucher, Discount
+from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer, VoucherSerializer, DiscountSerializer
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -61,4 +61,35 @@ class ProductReviewViewSet(viewsets.ModelViewSet):
     serializer_class = ProductReviewSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     filterset_fields = ['product', 'user']
+    ordering = ['-created_at']
+
+
+class VoucherViewSet(viewsets.ModelViewSet):
+    queryset = Voucher.objects.all()
+    serializer_class = VoucherSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active']
+    search_fields = ['code', 'description']
+    ordering_fields = ['created_at', 'discount_percentage', 'times_used']
+    ordering = ['-created_at']
+
+    @action(detail=True, methods=['post'])
+    def use_voucher(self, request, pk=None):
+        voucher = self.get_object()
+        if voucher.is_valid():
+            voucher.times_used += 1
+            voucher.save()
+            return Response({'message': 'Voucher used successfully'}, status=status.HTTP_200_OK)
+        return Response({'error': 'Voucher is not valid'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DiscountViewSet(viewsets.ModelViewSet):
+    queryset = Discount.objects.all()
+    serializer_class = DiscountSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['is_active', 'discount_type']
+    search_fields = ['name', 'description']
+    ordering_fields = ['created_at', 'discount_value']
     ordering = ['-created_at']

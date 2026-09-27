@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from products.views import ProductViewSet, CategoryViewSet, ProductReviewViewSet
+from products.views import ProductViewSet, CategoryViewSet, ProductReviewViewSet, VoucherViewSet, DiscountViewSet
 from orders.views import OrderViewSet, CartViewSet
 from accounts.views import AuthViewSet, UserViewSet, AddressViewSet
 from payments.views import PaymentViewSet
@@ -23,6 +23,8 @@ router = DefaultRouter()
 router.register(r'products', ProductViewSet, basename='product')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'reviews', ProductReviewViewSet, basename='review')
+router.register(r'vouchers', VoucherViewSet, basename='voucher')
+router.register(r'discounts', DiscountViewSet, basename='discount')
 
 # Orders
 router.register(r'orders', OrderViewSet, basename='order')

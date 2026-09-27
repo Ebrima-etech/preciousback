@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Category, ProductReview
+from .models import Product, Category, ProductReview, Voucher, Discount
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,3 +39,35 @@ class ProductReviewSerializer(serializers.ModelSerializer):
         model = ProductReview
         fields = ['id', 'product', 'user_name', 'rating', 'comment', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+class VoucherSerializer(serializers.ModelSerializer):
+    is_valid = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Voucher
+        fields = ['id', 'code', 'discount_percentage', 'description', 'max_uses', 'times_used', 'is_active', 'valid_from', 'valid_until', 'is_valid', 'created_at']
+        read_only_fields = ['id', 'times_used', 'created_at']
+
+    def get_is_valid(self, obj):
+        return obj.is_valid()
+
+
+class DiscountSerializer(serializers.ModelSerializer):
+    product_names = serializers.SerializerMethodField()
+    category_names = serializers.SerializerMethodField()
+    is_valid = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Discount
+        fields = ['id', 'name', 'description', 'discount_type', 'discount_value', 'products', 'product_names', 'categories', 'category_names', 'is_active', 'valid_from', 'valid_until', 'is_valid', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+    def get_product_names(self, obj):
+        return [p.name for p in obj.products.all()]
+
+    def get_category_names(self, obj):
+        return [c.name for c in obj.categories.all()]
+
+    def get_is_valid(self, obj):
+        return obj.is_valid()
