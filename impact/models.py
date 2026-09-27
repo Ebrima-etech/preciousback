@@ -82,14 +82,18 @@ class BulkRFQ(models.Model):
     ]
 
     organization_name = models.CharField(max_length=255)
+    contact_person_name = models.CharField(max_length=255, blank=True)
     contact_email = models.EmailField()
     contact_phone = models.CharField(max_length=20)
-    product_items = models.JSONField(default=dict)
+    product_category = models.CharField(max_length=100, blank=True)
     quantity = models.IntegerField()
     custom_requirements = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"{self.organization_name} - {self.status}"

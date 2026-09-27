@@ -30,7 +30,8 @@ class NewsletterSubscriptionSerializer(serializers.ModelSerializer):
 class BulkRFQSerializer(serializers.ModelSerializer):
     class Meta:
         model = BulkRFQ
-        fields = ['id', 'organization_name', 'contact_email', 'contact_phone', 'product_items', 'quantity', 'custom_requirements', 'status']
+        fields = ['id', 'organization_name', 'contact_person_name', 'contact_email', 'contact_phone', 'product_category', 'quantity', 'custom_requirements', 'status', 'created_at']
+        read_only_fields = ['id', 'status', 'created_at']
 
 class SponsorshipSerializer(serializers.ModelSerializer):
     class Meta:
