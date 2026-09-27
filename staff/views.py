@@ -30,7 +30,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             serializer.save()
 
 class StaffViewSet(viewsets.ModelViewSet):
-    queryset = Staff.objects.select_related('user', 'department')
+    queryset = Staff.objects.select_related('user', 'department').all()
     serializer_class = StaffSerializer
 
     def get_permissions(self):
@@ -39,7 +39,11 @@ class StaffViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        return Staff.objects.select_related('user', 'department')
+        try:
+            return Staff.objects.select_related('user', 'department').all()
+        except Exception as e:
+            print(f"Error in get_queryset: {e}")
+            return Staff.objects.none()
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
