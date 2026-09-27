@@ -25,11 +25,11 @@ class DepartmentSerializer(serializers.ModelSerializer):
         return obj.staff_members.count()
 
 class StaffSerializer(serializers.ModelSerializer):
-    user_data = UserSerializer(source='user', read_only=True)
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    role_display = serializers.CharField(source='get_role_display', read_only=True)
+    user_data = UserSerializer(source='user', read_only=True, required=False, allow_null=True)
+    department_name = serializers.CharField(source='department.name', read_only=True, required=False, allow_null=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Staff
         fields = ['id', 'user', 'user_data', 'department', 'department_name', 'role', 'role_display', 'permissions', 'salary', 'hire_date', 'is_active', 'phone_number', 'address', 'emergency_contact', 'emergency_contact_phone', 'notes', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'user_data', 'department_name', 'role_display']
