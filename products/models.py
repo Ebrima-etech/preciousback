@@ -53,6 +53,22 @@ class Product(models.Model):
         return self.name
 
 
+class ProductImage(models.Model):
+    """Additional images for products - supports gallery/multiple images"""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='products/gallery/')
+    alt_text = models.CharField(max_length=255, blank=True)
+    order = models.IntegerField(default=0, help_text="Display order for gallery")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        verbose_name_plural = 'Product Images'
+
+    def __str__(self):
+        return f"{self.product.name} - Image {self.order + 1}"
+
+
 class ProductReview(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_reviews')
     user = models.ForeignKey('accounts.User', on_delete=models.CASCADE)

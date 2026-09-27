@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Category, ProductReview, Voucher, Discount, Location
+from .models import Product, Category, ProductReview, Voucher, Discount, Location, ProductImage
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,16 +27,34 @@ class ProductSerializer(serializers.ModelSerializer):
             representation['image'] = instance.image.url
         return representation
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'image_url', 'alt_text', 'order']
+        read_only_fields = ['id']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+
 class ProductDetailSerializer(ProductSerializer):
     reviews = serializers.SerializerMethodField()
+    product_images = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ProductSerializer.Meta.fields + ['reviews', 'updated_at']
+        fields = ProductSerializer.Meta.fields + ['reviews', 'product_images', 'updated_at']
 
     def get_reviews(self, obj):
         reviews = obj.product_reviews.all()
         return ProductReviewSerializer(reviews, many=True).data
+
+    def get_product_images(self, obj):
+        images = obj.images.all()
+        return ProductImageSerializer(images, many=True).data
 
 class ProductReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.get_full_name', read_only=True)
