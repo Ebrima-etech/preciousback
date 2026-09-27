@@ -3,8 +3,23 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Product, Category, ProductReview, Voucher, Discount
-from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer, VoucherSerializer, DiscountSerializer
+from .models import Product, Category, ProductReview, Voucher, Discount, Location
+from .serializers import ProductSerializer, CategorySerializer, ProductDetailSerializer, ProductReviewSerializer, VoucherSerializer, DiscountSerializer, LocationSerializer
+
+class LocationViewSet(viewsets.ModelViewSet):
+    queryset = Location.objects.filter(is_active=True)
+    serializer_class = LocationSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    filterset_fields = ['name', 'is_active']
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+
+    def get_permissions(self):
+        # Allow read access to all, write access only to authenticated users
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()

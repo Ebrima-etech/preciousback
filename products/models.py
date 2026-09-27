@@ -1,6 +1,22 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from django.contrib.postgres.fields import JSONField
+
+class Location(models.Model):
+    """Delivery locations for the store"""
+    name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -26,6 +42,8 @@ class Product(models.Model):
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0, validators=[MinValueValidator(0), MaxValueValidator(5)])
     reviews_count = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    # Delivery prices by location: {location_id: price}
+    delivery_prices = JSONField(default=dict, blank=True, help_text="Delivery prices per location as {location_id: price}")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

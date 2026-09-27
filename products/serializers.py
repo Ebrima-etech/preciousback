@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from .models import Product, Category, ProductReview, Voucher, Discount
+from .models import Product, Category, ProductReview, Voucher, Discount, Location
+
+class LocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Location
+        fields = ['id', 'name', 'description', 'is_active', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,7 +18,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'created_at']
+        fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'delivery_prices', 'created_at']
         read_only_fields = ['id', 'created_at', 'rating', 'reviews_count']
 
     def to_representation(self, instance):
