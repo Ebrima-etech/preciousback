@@ -2,12 +2,14 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.utils.crypto import get_random_string
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import Department, Staff
 from .serializers import DepartmentSerializer, StaffSerializer, UserSerializer
+
+User = get_user_model()
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
