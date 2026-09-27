@@ -1,8 +1,15 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from .models import ImpactMetric, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
+
+class IsAuthenticatedOrCreateOnly(BasePermission):
+    """Allow unauthenticated create, but require auth for other operations"""
+    def has_permission(self, request, view):
+        if request.method == 'POST' and view.action == 'create':
+            return True
+        return request.user and request.user.is_authenticated
 from .serializers import (ImpactMetricSerializer, CollectionZoneSerializer, EventSerializer, EventRegistrationSerializer,
                           NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer)
 
@@ -61,7 +68,7 @@ class NewsletterViewSet(viewsets.ViewSet):
 class BulkRFQViewSet(viewsets.ModelViewSet):
     queryset = BulkRFQ.objects.all()
     serializer_class = BulkRFQSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticatedOrCreateOnly]
 
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
