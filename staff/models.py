@@ -62,6 +62,7 @@ class Staff(models.Model):
 
     class Meta:
         verbose_name_plural = "Staff"
+        ordering = ['id']
 
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.get_role_display()}"
