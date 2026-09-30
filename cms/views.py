@@ -176,10 +176,20 @@ class SiteSettingsViewSet(viewsets.ViewSet):
 
 
 class HeroSlideViewSet(viewsets.ModelViewSet):
-    queryset = HeroSlide.objects.filter(is_active=True)
+    queryset = HeroSlide.objects.all()
     serializer_class = HeroSlideSerializer
-    permission_classes = [AllowAny]
     ordering = ['order']
+
+    def get_queryset(self):
+        # Allow authenticated users to see all slides, others see only active
+        if self.request.user and self.request.user.is_authenticated:
+            return HeroSlide.objects.all()
+        return HeroSlide.objects.filter(is_active=True)
+
+    def get_permissions(self):
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
