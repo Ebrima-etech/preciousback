@@ -77,10 +77,12 @@ class HeroSlideSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HeroSlide
-        fields = ['id', 'title', 'description', 'image', 'image_url', 'slide_type', 'show_badge', 'show_heading', 'show_buttons', 'show_description', 'order', 'is_active']
+        fields = ['id', 'title', 'description', 'image', 'image_url', 'slide_type', 'show_badge', 'show_heading', 'show_buttons', 'show_description', 'order', 'is_active', 'created_at', 'updated_at']
 
     def get_image_url(self, obj):
+        """Return Cloudinary URL if image exists, otherwise return image_url field"""
         if obj.image:
+            # image.url returns the full Cloudinary URL
             return obj.image.url
         return obj.image_url or ''
 
