@@ -73,6 +73,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
 
 class HeroSlideSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = HeroSlide
