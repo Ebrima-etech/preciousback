@@ -72,9 +72,16 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
 
 
 class HeroSlideSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
     class Meta:
         model = HeroSlide
-        fields = ['id', 'title', 'description', 'image_url', 'slide_type', 'show_badge', 'show_heading', 'show_buttons', 'show_description', 'order', 'is_active']
+        fields = ['id', 'title', 'description', 'image', 'image_url', 'slide_type', 'show_badge', 'show_heading', 'show_buttons', 'show_description', 'order', 'is_active']
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url
+        return obj.image_url or ''
 
 
 class TeamMemberSerializer(serializers.ModelSerializer):

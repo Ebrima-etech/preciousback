@@ -225,7 +225,8 @@ class HeroSlide(models.Model):
 
     title = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
-    image_url = models.URLField()
+    image = models.ImageField(upload_to='hero-slides/', blank=True, null=True)
+    image_url = models.URLField(blank=True, null=True)
     slide_type = models.CharField(max_length=20, choices=SLIDE_TYPES, default='main')
     show_badge = models.BooleanField(default=True)
     show_heading = models.BooleanField(default=True)
@@ -235,6 +236,12 @@ class HeroSlide(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def image_url_display(self):
+        if self.image:
+            return self.image.url
+        return self.image_url or ''
 
     class Meta:
         ordering = ['order']
