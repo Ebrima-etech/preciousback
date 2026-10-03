@@ -43,16 +43,20 @@ def sync_order_impact(order):
 
     Values are a snapshot of the product's impact at the time the order was confirmed.
     """
+    from django.db import transaction
+
     try:
-        if order.status in COUNTED_ORDER_STATUSES:
-            existing = set(
-                ImpactEntry.objects.filter(order_item__order=order).values_list('order_item_id', flat=True)
-            )
-            for item in order.items.select_related('product', 'order'):
-                if item.id not in existing:
-                    ImpactEntry.objects.create(order_item=item, date=timezone.localdate(), **_sale_values(item))
-        else:
-            ImpactEntry.objects.filter(order_item__order=order).delete()
+        # Savepoint: a failure here must not abort the caller's transaction (e.g. checkout)
+        with transaction.atomic():
+            if order.status in COUNTED_ORDER_STATUSES:
+                existing = set(
+                    ImpactEntry.objects.filter(order_item__order=order).values_list('order_item_id', flat=True)
+                )
+                for item in order.items.select_related('product', 'order'):
+                    if item.id not in existing:
+                        ImpactEntry.objects.create(order_item=item, date=timezone.localdate(), **_sale_values(item))
+            else:
+                ImpactEntry.objects.filter(order_item__order=order).delete()
     except Exception:
         # Impact tracking must never block order processing
         logger.exception('Failed to sync impact for order %s', order.pk)

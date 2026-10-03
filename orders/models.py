@@ -50,6 +50,17 @@ class Order(models.Model):
     def __str__(self):
         return f'Order #{self.id} - {self.user.email}'
 
+    def save(self, *args, **kwargs):
+        # Assign the number before the first insert so the in-memory instance has it too.
+        # (Setting it afterwards with a queryset update left a blank number on the instance,
+        # which later save() calls wrote back, breaking the unique constraint for the next order.)
+        if not self.order_number:
+            number = generate_order_number()
+            while Order.objects.filter(order_number=number).exists():
+                number = generate_order_number()
+            self.order_number = number
+        super().save(*args, **kwargs)
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
