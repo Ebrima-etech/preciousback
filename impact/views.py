@@ -10,7 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.views import APIView
 from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
 from .permissions import IsStaff, IsStaffOrReadOnly, is_staff_user
-from .services import compute_summary, rebuild_sales_impact
+from .services import compute_summary, customer_impact, rebuild_sales_impact, user_from_share_token
 
 
 def _parse_date(value, field):
@@ -196,3 +196,23 @@ class SponsorshipViewSet(viewsets.ModelViewSet):
     queryset = Sponsorship.objects.all()
     serializer_class = SponsorshipSerializer
     permission_classes = [AllowAny]
+
+
+class CustomerImpactView(APIView):
+    """The signed-in customer's own impact, with a share token for their public impact card."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(customer_impact(request.user, include_private=True))
+
+
+class SharedImpactView(APIView):
+    """Public impact card for a share link. Shows only first name + last initial and totals."""
+    permission_classes = [AllowAny]
+    authentication_classes = []  # a stale token in the browser must not turn this into a 401
+
+    def get(self, request, token):
+        user = user_from_share_token(token)
+        if user is None:
+            return Response({'error': 'Impact card not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(customer_impact(user, include_private=False))

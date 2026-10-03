@@ -279,3 +279,162 @@ def product_lifetime_impact(product):
         'co2_saved_kg': _num(agg['co2']),
         'water_saved_liters': _num(agg['water'], 2),
     }
+
+
+# --- Customer impact ------------------------------------------------------------
+
+SHARE_SALT = 'impact-share'
+
+
+def _share_signer():
+    from django.core.signing import Signer
+    return Signer(salt=SHARE_SALT, sep='.')
+
+
+def make_share_token(user):
+    return _share_signer().sign(str(user.pk))
+
+
+def user_from_share_token(token):
+    """Return the user for a share token, or None if the token is invalid."""
+    from django.contrib.auth import get_user_model
+    from django.core.signing import BadSignature
+
+    try:
+        pk = _share_signer().unsign(token)
+    except BadSignature:
+        return None
+    return get_user_model().objects.filter(pk=pk, is_active=True).first()
+
+
+def public_display_name(user):
+    first = (user.first_name or '').strip()
+    last = (user.last_name or '').strip()
+    if first:
+        return f'{first} {last[0]}.' if last else first
+    return 'A Precious Plastic supporter'
+
+
+def _customer_level(plastic):
+    from .constants import CUSTOMER_LEVELS
+
+    current, upcoming = None, None
+    for minimum, key, name in CUSTOMER_LEVELS:
+        if plastic >= minimum:
+            current = (minimum, key, name)
+        elif upcoming is None:
+            upcoming = (minimum, key, name)
+    level = {'key': current[1], 'name': current[2], 'min_kg': _num(current[0])}
+    next_level = None
+    if upcoming:
+        span = upcoming[0] - current[0]
+        next_level = {
+            'key': upcoming[1],
+            'name': upcoming[2],
+            'min_kg': _num(upcoming[0]),
+            'remaining_kg': _num(upcoming[0] - plastic),
+            'progress': round(float((plastic - current[0]) / span), 3) if span else 1.0,
+        }
+    return level, next_level
+
+
+def _customer_badges(totals):
+    badges = [
+        ('first_step', 'First Step', 'Bought your first recycled product', totals['products_bought'] >= 1),
+        ('one_kg', '1 kg Club', 'Kept 1 kg of plastic out of the environment', totals['plastic_kg'] >= 1),
+        ('bottles_100', '100 Bottles', 'Recycled the equivalent of 100 plastic bottles', totals['bottles_equivalent'] >= 100),
+        ('climate_ally', 'Climate Ally', 'Avoided 10 kg of CO₂ emissions', totals['co2_saved_kg'] >= 10),
+        ('loyal', 'Loyal Recycler', 'Placed 3 or more orders', totals['orders'] >= 3),
+        ('collector', 'Collector', 'Bought 3 different recycled products', totals['distinct_products'] >= 3),
+    ]
+    return [{'key': k, 'name': n, 'description': d, 'earned': bool(e)} for k, n, d, e in badges]
+
+
+def customer_impact(user, include_private=True):
+    """Impact of one customer's confirmed purchases, plus how they compare to the community."""
+    from django.db.models import DecimalField, ExpressionWrapper, F, Min
+    from orders.models import OrderItem
+    from .constants import KG_CO2_PER_TREE_YEAR
+
+    sales = ImpactEntry.objects.filter(source=ImpactEntry.SOURCE_SALE, order_item__order__user=user)
+    agg = sales.aggregate(
+        plastic=Sum('plastic_kg', default=ZERO),
+        co2=Sum('co2_saved_kg', default=ZERO),
+        water=Sum('water_saved_liters', default=ZERO),
+        units=Sum('items_count', default=0),
+        orders=Count('order_item__order', distinct=True),
+        products=Count('product', distinct=True),
+        since=Min('date'),
+    )
+    plastic = agg['plastic']
+    totals = {
+        'plastic_kg': _num(plastic),
+        'co2_saved_kg': _num(agg['co2']),
+        'water_saved_liters': _num(agg['water'], 2),
+        'products_bought': agg['units'],
+        'orders': agg['orders'],
+        'distinct_products': agg['products'],
+        'bottles_equivalent': int((plastic * 1000) / GRAMS_PER_BOTTLE),
+        'trees_equivalent': round(float(agg['co2'] / KG_CO2_PER_TREE_YEAR), 1),
+    }
+
+    # Rank among all customers with confirmed purchases, by plastic recycled
+    per_customer = (
+        ImpactEntry.objects.filter(source=ImpactEntry.SOURCE_SALE, order_item__isnull=False)
+        .values('order_item__order__user')
+        .annotate(plastic=Sum('plastic_kg'))
+    )
+    supporters = per_customer.count()
+    rank = None
+    if plastic > 0 and supporters:
+        ahead = per_customer.filter(plastic__gt=plastic).count()
+        rank = {
+            'position': ahead + 1,
+            'supporters': supporters,
+            'top_percent': max(1, round((ahead + 1) / supporters * 100)),
+        }
+
+    level, next_level = _customer_level(plastic)
+    community = compute_totals()
+    result = {
+        'display_name': public_display_name(user),
+        'has_impact': agg['units'] > 0,
+        'since': agg['since'].isoformat() if agg['since'] else None,
+        'totals': totals,
+        'level': level,
+        'next_level': next_level,
+        'badges': _customer_badges(totals),
+        'rank': rank,
+        'community': {
+            'plastic_diverted_kg': community['plastic_diverted_kg'],
+            'products_sold': community['products_sold'],
+            'supporters': supporters,
+        },
+    }
+
+    if include_private:
+        result['share_token'] = make_share_token(user)
+        result['products'] = [
+            {
+                'product_id': row['product_id'],
+                'name': row['product__name'],
+                'units': row['units'] or 0,
+                'plastic_kg': _num(row['plastic']),
+                'co2_saved_kg': _num(row['co2']),
+            }
+            for row in sales.filter(product__isnull=False)
+            .values('product_id', 'product__name')
+            .annotate(units=Sum('items_count'), plastic=Sum('plastic_kg'), co2=Sum('co2_saved_kg'))
+            .order_by('-plastic')
+        ]
+        # Impact of orders that are placed but not yet confirmed
+        decimal = DecimalField(max_digits=14, decimal_places=3)
+        pending = OrderItem.objects.filter(
+            order__user=user, order__status__in=('pending', 'payment_pending')
+        ).aggregate(
+            plastic=Sum(ExpressionWrapper(F('product__plastic_recycled_kg') * F('quantity'), output_field=decimal), default=ZERO),
+            co2=Sum(ExpressionWrapper(F('product__co2_saved_kg') * F('quantity'), output_field=decimal), default=ZERO),
+        )
+        result['pending'] = {'plastic_kg': _num(pending['plastic']), 'co2_saved_kg': _num(pending['co2'])}
+
+    return result

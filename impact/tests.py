@@ -155,3 +155,64 @@ class ProductImpactApiTests(ImpactTestBase):
         self.assertEqual(response.data['bottles_equivalent'], 125)
         self.assertTrue(response.data['has_impact'])
         self.assertEqual(response.data['lifetime_impact']['units_sold'], 0)
+
+
+class CustomerImpactTests(ImpactTestBase):
+    def confirm(self, order):
+        order.refresh_from_db()  # pick up the order number set by the post_save signal
+        order.status = 'delivered'
+        order.save()
+
+    def test_customer_sees_own_confirmed_impact(self):
+        self.confirm(self.make_order(quantity=2))  # 5 kg, 8 kg CO2
+        self.make_order(quantity=1)  # not confirmed yet
+
+        self.client.force_authenticate(self.customer)
+        data = self.client.get('/api/impact/me/').data
+
+        self.assertTrue(data['has_impact'])
+        self.assertEqual(data['totals']['plastic_kg'], 5.0)
+        self.assertEqual(data['totals']['products_bought'], 2)
+        self.assertEqual(data['totals']['orders'], 1)
+        self.assertEqual(data['totals']['bottles_equivalent'], 250)
+        self.assertEqual(data['level']['key'], 'guardian')
+        self.assertEqual(data['next_level']['key'], 'hero')
+        self.assertEqual(data['pending']['plastic_kg'], 2.5)
+        self.assertEqual(data['rank']['position'], 1)
+        earned = {b['key'] for b in data['badges'] if b['earned']}
+        self.assertEqual(earned, {'first_step', 'one_kg', 'bottles_100'})
+        self.assertEqual(data['products'][0]['units'], 2)
+
+    def test_other_customers_purchases_are_not_included(self):
+        other = User.objects.create_user('other@example.com', 'pass12345', first_name='Oth', last_name='Er')
+        order = Order.objects.create(user=other, total_price=Decimal('500'), status='payment_pending')
+        OrderItem.objects.create(order=order, product=self.product, quantity=1, price=Decimal('500'))
+        self.confirm(order)
+
+        self.client.force_authenticate(self.customer)
+        data = self.client.get('/api/impact/me/').data
+        self.assertFalse(data['has_impact'])
+        self.assertIsNone(data['rank'])
+        self.assertEqual(data['community']['supporters'], 1)
+
+    def test_requires_login(self):
+        self.assertEqual(self.client.get('/api/impact/me/').status_code, 401)
+
+    def test_share_link_shows_public_card_only(self):
+        self.confirm(self.make_order(quantity=2))
+        self.client.force_authenticate(self.customer)
+        token = self.client.get('/api/impact/me/').data['share_token']
+
+        public = APIClient().get(f'/api/impact/share/{token}/')
+        self.assertEqual(public.status_code, 200)
+        self.assertEqual(public.data['display_name'], 'Cus T.')
+        self.assertEqual(public.data['totals']['plastic_kg'], 5.0)
+        self.assertNotIn('share_token', public.data)
+        self.assertNotIn('products', public.data)
+        self.assertNotIn('pending', public.data)
+
+    def test_tampered_share_link_is_rejected(self):
+        self.client.force_authenticate(self.customer)
+        token = self.client.get('/api/impact/me/').data['share_token']
+        forged = f'{self.staff.pk}.{token.split(".", 1)[1]}'
+        self.assertEqual(APIClient().get(f'/api/impact/share/{forged}/').status_code, 404)

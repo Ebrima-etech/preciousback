@@ -8,7 +8,7 @@ from payments.webhooks import ModemPayWebhookView
 from impact.views import (
     ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet, EventRegistrationViewSet,
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet,
-    ImpactEntryViewSet, ImpactSummaryView
+    ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView
 )
 from staff.views import DepartmentViewSet, StaffViewSet
 from cms.views import (
@@ -72,6 +72,8 @@ router.register(r'partners', PartnerViewSet, basename='partner')
 
 urlpatterns = [
     path('impact/summary/', ImpactSummaryView.as_view(), name='impact-summary'),
+    path('impact/me/', CustomerImpactView.as_view(), name='impact-me'),
+    path('impact/share/<str:token>/', SharedImpactView.as_view(), name='impact-share'),
     path('', include(router.urls)),
     path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
 ]

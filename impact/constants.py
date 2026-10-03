@@ -15,6 +15,18 @@ PLASTIC_TYPE_CHOICES = [
 # Average weight of a 500ml plastic bottle, used for "bottles equivalent" figures
 GRAMS_PER_BOTTLE = Decimal('20')
 
+# Rough yearly CO2 absorption of one tree, for "trees equivalent" figures
+KG_CO2_PER_TREE_YEAR = Decimal('21')
+
+# Customer impact levels: (minimum kg of plastic, key, name)
+CUSTOMER_LEVELS = [
+    (Decimal('0'), 'seedling', 'Seedling'),
+    (Decimal('1'), 'saver', 'Plastic Saver'),
+    (Decimal('5'), 'guardian', 'Ocean Guardian'),
+    (Decimal('20'), 'hero', 'Planet Hero'),
+    (Decimal('50'), 'champion', 'Earth Champion'),
+]
+
 # Order statuses at which a sale counts toward the business impact
 COUNTED_ORDER_STATUSES = ('processing', 'shipped', 'delivered')
 
