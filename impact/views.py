@@ -8,9 +8,11 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
 from rest_framework.views import APIView
+from rest_framework.throttling import AnonRateThrottle
 from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
 from .permissions import IsStaff, IsStaffOrReadOnly, is_staff_user
-from .services import compute_summary, customer_impact, rebuild_sales_impact, user_from_share_token
+from .services import compute_summary, customer_impact, rebuild_sales_impact, sponsorship_stats, user_from_share_token
+from .constants import SPONSORSHIP_ITEMS
 
 
 def _parse_date(value, field):
@@ -28,7 +30,8 @@ class IsAuthenticatedOrCreateOnly(BasePermission):
             return True
         return request.user and request.user.is_authenticated
 from .serializers import (ImpactMetricSerializer, ImpactEntrySerializer, CollectionZoneSerializer, EventSerializer, EventRegistrationSerializer,
-                          NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer)
+                          NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer,
+                          SponsorshipAdminSerializer)
 
 class ImpactMetricViewSet(viewsets.ModelViewSet):
     """Headline metrics: public read (active only), staff write."""
@@ -82,17 +85,19 @@ class ImpactEntryViewSet(viewsets.ModelViewSet):
 
     def _automatic_entry_error(self):
         return Response(
-            {'error': 'This entry was recorded automatically from an order. Change the order status instead.'},
+            {'error': 'This entry was recorded automatically from an order or sponsorship. Change its status instead.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     def update(self, request, *args, **kwargs):
-        if self.get_object().order_item_id:
+        entry = self.get_object()
+        if entry.order_item_id or entry.sponsorship_id:
             return self._automatic_entry_error()
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        if self.get_object().order_item_id:
+        entry = self.get_object()
+        if entry.order_item_id or entry.sponsorship_id:
             return self._automatic_entry_error()
         return super().destroy(request, *args, **kwargs)
 
@@ -136,7 +141,19 @@ class ImpactSummaryView(APIView):
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('date')
     serializer_class = EventSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStaff]
+
+    def get_permissions(self):
+        # Visitors can browse events and register; managing events is staff-only
+        if self.action in ('list', 'retrieve', 'register'):
+            return [AllowAny()]
+        return [IsStaff()]
+
+    def get_queryset(self):
+        qs = Event.objects.all().order_by('date')
+        if not is_staff_user(self.request.user):
+            qs = qs.filter(is_active=True)
+        return qs
 
     @action(detail=True, methods=['post'])
     def register(self, request, pk=None):
@@ -157,7 +174,7 @@ class EventViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Registered successfully', 'data': serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[IsStaff])
     def registrations(self, request, pk=None):
         event = self.get_object()
         registrations = EventRegistration.objects.filter(event=event)
@@ -190,12 +207,64 @@ class BulkRFQViewSet(viewsets.ModelViewSet):
 class EventRegistrationViewSet(viewsets.ModelViewSet):
     queryset = EventRegistration.objects.all()
     serializer_class = EventRegistrationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStaff]
+
+class SponsorshipSubmitThrottle(AnonRateThrottle):
+    rate = '20/hour'
+
 
 class SponsorshipViewSet(viewsets.ModelViewSet):
+    """Anyone can submit a sponsorship pledge; only staff can see and manage them."""
     queryset = Sponsorship.objects.all()
-    serializer_class = SponsorshipSerializer
-    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'item_type', 'sponsor_type']
+    search_fields = ['reference', 'sponsor_name', 'organization_name', 'sponsor_email', 'sponsor_phone']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        if self.action in ('create', 'options_info'):
+            return [AllowAny()]
+        return [IsStaff()]
+
+    def get_throttles(self):
+        if self.action == 'create':
+            return [SponsorshipSubmitThrottle()]
+        return super().get_throttles()
+
+    def get_authenticators(self):
+        # The public form must work even if the browser holds an expired token.
+        # self.action isn't set yet when DRF asks for authenticators, so read it from the action map.
+        action_map = getattr(self, 'action_map', None) or {}
+        request = getattr(self, 'request', None)
+        action = action_map.get(request.method.lower()) if request is not None else None
+        if action in ('create', 'options_info'):
+            return []
+        return super().get_authenticators()
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return SponsorshipSerializer
+        return SponsorshipAdminSerializer
+
+    @action(detail=False, methods=['get'], url_path='options')
+    def options_info(self, request):
+        """What can be sponsored and for how much, so the form never hardcodes prices."""
+        return Response({
+            'items': [
+                {
+                    'item_type': key,
+                    'unit_price': float(cfg['unit_price']),
+                    'currency': cfg['currency'],
+                    'plastic_kg': float(cfg['plastic_kg']),
+                    'description': cfg['description'],
+                }
+                for key, cfg in SPONSORSHIP_ITEMS.items()
+            ],
+        })
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        return Response(sponsorship_stats())
 
 
 class CustomerImpactView(APIView):

@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .constants import AUTO_VALUE_UNITS
+from .constants import AUTO_VALUE_UNITS, SPONSORSHIP_ITEMS
 from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
 from .services import compute_totals
 
@@ -55,7 +55,7 @@ class ImpactEntrySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_is_automatic(self, obj):
-        return obj.order_item_id is not None
+        return obj.order_item_id is not None or obj.sponsorship_id is not None
 
     def validate(self, attrs):
         # Offline sales: fill impact from the product when the numbers were left at zero
@@ -103,6 +103,43 @@ class BulkRFQSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class SponsorshipSerializer(serializers.ModelSerializer):
+    """Public sponsorship form. The amount is always calculated on the server."""
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+
     class Meta:
         model = Sponsorship
-        fields = ['id', 'sponsor_name', 'sponsor_email', 'items_count', 'amount', 'item_type', 'status']
+        fields = ['id', 'reference', 'sponsor_type', 'sponsor_name', 'organization_name', 'sponsor_email',
+                  'sponsor_phone', 'item_type', 'items_count', 'amount', 'currency', 'message', 'is_anonymous',
+                  'status', 'status_label', 'created_at']
+        read_only_fields = ['id', 'reference', 'amount', 'currency', 'status', 'created_at']
+
+    def validate_item_type(self, value):
+        if value not in SPONSORSHIP_ITEMS:
+            raise serializers.ValidationError(f'Choose one of: {", ".join(SPONSORSHIP_ITEMS)}.')
+        return value
+
+    def validate_items_count(self, value):
+        if value < 1 or value > 1000:
+            raise serializers.ValidationError('Choose between 1 and 1000.')
+        return value
+
+    def validate(self, attrs):
+        sponsor_type = attrs.get('sponsor_type', getattr(self.instance, 'sponsor_type', 'individual'))
+        org = attrs.get('organization_name', getattr(self.instance, 'organization_name', ''))
+        if sponsor_type == 'organization' and not (org or '').strip():
+            raise serializers.ValidationError({'organization_name': 'Enter the organization name.'})
+        item_type = attrs.get('item_type', getattr(self.instance, 'item_type', 'School Desk'))
+        count = attrs.get('items_count', getattr(self.instance, 'items_count', 1))
+        config = SPONSORSHIP_ITEMS.get(item_type)
+        if config:
+            attrs['amount'] = config['unit_price'] * count
+            attrs['currency'] = config['currency']
+        return attrs
+
+
+class SponsorshipAdminSerializer(SponsorshipSerializer):
+    """Staff view: can also update status and internal notes."""
+
+    class Meta(SponsorshipSerializer.Meta):
+        fields = SponsorshipSerializer.Meta.fields + ['admin_notes', 'updated_at']
+        read_only_fields = ['id', 'reference', 'amount', 'currency', 'created_at', 'updated_at']

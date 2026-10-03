@@ -8,3 +8,9 @@ from .services import sync_order_impact
 def record_order_impact(sender, instance, **kwargs):
     """Keep sale impact entries in step with order status (covers admin edits and payment webhooks)."""
     sync_order_impact(instance)
+
+
+@receiver(post_save, sender='impact.Sponsorship')
+def record_sponsorship_impact(sender, instance, **kwargs):
+    from .services import sync_sponsorship_impact
+    sync_sponsorship_impact(instance)

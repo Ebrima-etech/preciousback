@@ -51,3 +51,21 @@ AUTO_VALUE_UNITS = {
     'co2_saved_kg': 'kg',
     'water_saved_liters': 'L',
 }
+
+# What people can sponsor. The key is stored in Sponsorship.item_type.
+SPONSORSHIP_ITEMS = {
+    'School Desk': {
+        'unit_price': Decimal('150'),
+        'currency': 'USD',
+        'plastic_kg': Decimal('5'),
+        'description': 'An upcycled school desk delivered to a child in a rural Gambian school.',
+    },
+}
+
+SPONSORSHIP_STATUS_CHOICES = [
+    ('pending', 'Pending'),
+    ('contacted', 'Contacted'),
+    ('paid', 'Paid'),
+    ('delivered', 'Delivered'),
+    ('cancelled', 'Cancelled'),
+]

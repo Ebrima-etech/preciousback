@@ -233,3 +233,57 @@ class CustomerCommunityStatsTests(ImpactTestBase):
         self.assertEqual(levels['guardian'], 1)
         self.assertEqual(sum(levels.values()), 1)
         self.assertNotIn('customer@example.com', str(data))
+
+
+class SponsorshipTests(ImpactTestBase):
+    payload = {
+        'sponsor_type': 'individual', 'sponsor_name': 'Fatou Ceesay', 'sponsor_email': 'fatou@example.com',
+        'sponsor_phone': '+220 700 0000', 'item_type': 'School Desk', 'items_count': 3, 'message': 'For Kartong LBS',
+    }
+
+    def test_public_can_submit_and_amount_is_calculated_on_server(self):
+        response = self.client.post('/api/impact/sponsorship/', {**self.payload, 'amount': '1'}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(response.data['reference'].startswith('SP-'))
+        self.assertEqual(Decimal(response.data['amount']), Decimal('450'))
+        self.assertEqual(response.data['currency'], 'USD')
+        self.assertEqual(response.data['status'], 'pending')
+
+    def test_submit_works_with_a_stale_token(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer not-a-real-token')
+        self.assertEqual(self.client.post('/api/impact/sponsorship/', self.payload, format='json').status_code, 201)
+
+    def test_organization_requires_name(self):
+        response = self.client.post('/api/impact/sponsorship/', {**self.payload, 'sponsor_type': 'organization'}, format='json')
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('organization_name', response.data)
+
+    def test_rejects_unknown_item_and_bad_count(self):
+        self.assertEqual(self.client.post('/api/impact/sponsorship/', {**self.payload, 'item_type': 'Yacht'}, format='json').status_code, 400)
+        self.assertEqual(self.client.post('/api/impact/sponsorship/', {**self.payload, 'items_count': 0}, format='json').status_code, 400)
+
+    def test_only_staff_can_list_and_update(self):
+        self.client.post('/api/impact/sponsorship/', self.payload, format='json')
+        self.assertEqual(self.client.get('/api/impact/sponsorship/').status_code, 401)
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get('/api/impact/sponsorship/').status_code, 403)
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(self.client.get('/api/impact/sponsorship/').data['count'], 1)
+
+    def test_options_are_public(self):
+        response = self.client.get('/api/impact/sponsorship/options/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['items'][0]['item_type'], 'School Desk')
+        self.assertEqual(response.data['items'][0]['unit_price'], 150.0)
+
+    def test_delivered_sponsorship_is_added_to_impact_log(self):
+        sponsorship_id = self.client.post('/api/impact/sponsorship/', self.payload, format='json').data['id']
+        self.client.force_authenticate(self.staff)
+
+        self.client.patch(f'/api/impact/sponsorship/{sponsorship_id}/', {'status': 'delivered'}, format='json')
+        entry = ImpactEntry.objects.get(sponsorship_id=sponsorship_id)
+        self.assertEqual(entry.items_count, 3)
+        self.assertEqual(entry.plastic_kg, Decimal('15.000'))
+
+        self.client.patch(f'/api/impact/sponsorship/{sponsorship_id}/', {'status': 'cancelled'}, format='json')
+        self.assertFalse(ImpactEntry.objects.filter(sponsorship_id=sponsorship_id).exists())

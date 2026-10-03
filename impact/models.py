@@ -2,7 +2,9 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-from .constants import PLASTIC_TYPE_CHOICES, AUTO_VALUE_CHOICES
+import secrets
+import string
+from .constants import PLASTIC_TYPE_CHOICES, AUTO_VALUE_CHOICES, SPONSORSHIP_STATUS_CHOICES
 
 class ImpactMetric(models.Model):
     """Headline metric shown on the public site, either typed in or pulled from live tracking."""
@@ -49,6 +51,7 @@ class ImpactEntry(models.Model):
     people_engaged = models.PositiveIntegerField(default=0)
     product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
     order_item = models.OneToOneField('orders.OrderItem', on_delete=models.CASCADE, null=True, blank=True, related_name='impact_entry')
+    sponsorship = models.OneToOneField('Sponsorship', on_delete=models.CASCADE, null=True, blank=True, related_name='impact_entry')
     zone = models.ForeignKey('CollectionZone', on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
     notes = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
@@ -147,14 +150,45 @@ class BulkRFQ(models.Model):
         return f"{self.organization_name} - {self.status}"
 
 
+def generate_sponsorship_reference():
+    chars = string.ascii_uppercase + string.digits
+    return 'SP-' + ''.join(secrets.choice(chars) for _ in range(8))
+
+
 class Sponsorship(models.Model):
+    """A sponsorship pledge from the public form. Staff follow up for payment and delivery."""
+    SPONSOR_TYPE_CHOICES = [
+        ('individual', 'Individual'),
+        ('organization', 'Organization'),
+    ]
+
+    reference = models.CharField(max_length=20, blank=True, db_index=True)
+    sponsor_type = models.CharField(max_length=20, choices=SPONSOR_TYPE_CHOICES, default='individual')
     sponsor_name = models.CharField(max_length=255)
+    organization_name = models.CharField(max_length=255, blank=True)
     sponsor_email = models.EmailField()
+    sponsor_phone = models.CharField(max_length=30, blank=True)
     items_count = models.IntegerField(default=1)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
     item_type = models.CharField(max_length=100, default="School Desk")
-    status = models.CharField(max_length=20, default='active')
+    message = models.TextField(blank=True, help_text="Dedication or note from the sponsor")
+    is_anonymous = models.BooleanField(default=False, help_text="Don't mention the sponsor by name publicly")
+    status = models.CharField(max_length=20, choices=SPONSORSHIP_STATUS_CHOICES, default='pending')
+    admin_notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.sponsor_name} - {self.item_type}"
+        return f"{self.reference or self.pk} {self.sponsor_name} - {self.items_count} x {self.item_type}"
+
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            ref = generate_sponsorship_reference()
+            while Sponsorship.objects.filter(reference=ref).exists():
+                ref = generate_sponsorship_reference()
+            self.reference = ref
+        super().save(*args, **kwargs)

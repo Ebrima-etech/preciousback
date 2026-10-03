@@ -477,3 +477,51 @@ def customer_community_stats():
         'bottles_equivalent': int((plastic * 1000) / GRAMS_PER_BOTTLE),
         'levels': levels,
     }
+
+
+# --- Sponsorships ---------------------------------------------------------------
+
+def sync_sponsorship_impact(sponsorship):
+    """Delivered sponsorships add their items to the impact log; any other status removes them."""
+    from django.db import transaction
+    from .constants import SPONSORSHIP_ITEMS
+
+    try:
+        with transaction.atomic():
+            existing = ImpactEntry.objects.filter(sponsorship=sponsorship).first()
+            if sponsorship.status != 'delivered':
+                if existing:
+                    existing.delete()
+                return
+            config = SPONSORSHIP_ITEMS.get(sponsorship.item_type, {})
+            plastic = config.get('plastic_kg', ZERO) * sponsorship.items_count
+            name = 'Anonymous sponsor' if sponsorship.is_anonymous else (sponsorship.organization_name or sponsorship.sponsor_name)
+            values = {
+                'source': 'production',
+                'title': f'Sponsored {sponsorship.item_type.lower()}s ({sponsorship.reference}) - {name}',
+                'plastic_kg': plastic,
+                'items_count': sponsorship.items_count,
+            }
+            if existing:
+                for field, value in values.items():
+                    setattr(existing, field, value)
+                existing.save()
+            else:
+                ImpactEntry.objects.create(sponsorship=sponsorship, date=timezone.localdate(), **values)
+    except Exception:
+        logger.exception('Failed to sync impact for sponsorship %s', sponsorship.pk)
+
+
+def sponsorship_stats():
+    from .models import Sponsorship
+
+    rows = Sponsorship.objects.values('status', 'currency').annotate(
+        count=Count('id'), items=Sum('items_count'), amount=Sum('amount'),
+    )
+    by_status = {}
+    for row in rows:
+        bucket = by_status.setdefault(row['status'], {'count': 0, 'items': 0, 'amount': {}})
+        bucket['count'] += row['count']
+        bucket['items'] += row['items'] or 0
+        bucket['amount'][row['currency']] = _num(row['amount'], 2)
+    return by_status
