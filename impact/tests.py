@@ -216,3 +216,20 @@ class CustomerImpactTests(ImpactTestBase):
         token = self.client.get('/api/impact/me/').data['share_token']
         forged = f'{self.staff.pk}.{token.split(".", 1)[1]}'
         self.assertEqual(APIClient().get(f'/api/impact/share/{forged}/').status_code, 404)
+
+
+class CustomerCommunityStatsTests(ImpactTestBase):
+    def test_public_summary_includes_anonymous_customer_stats(self):
+        order = self.make_order(quantity=2)  # 5 kg -> Ocean Guardian
+        order.refresh_from_db()
+        order.status = 'delivered'
+        order.save()
+
+        data = self.client.get('/api/impact/summary/').data['customers']
+        self.assertEqual(data['supporters'], 1)
+        self.assertEqual(data['plastic_kg'], 5.0)
+        self.assertEqual(data['average_plastic_kg'], 5.0)
+        levels = {lvl['key']: lvl['count'] for lvl in data['levels']}
+        self.assertEqual(levels['guardian'], 1)
+        self.assertEqual(sum(levels.values()), 1)
+        self.assertNotIn('customer@example.com', str(data))

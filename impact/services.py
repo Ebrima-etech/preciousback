@@ -242,6 +242,7 @@ def compute_summary(start=None, end=None, include_private=False):
         'by_plastic_type': by_plastic_type,
         'by_zone': by_zone,
         'monthly': compute_monthly(qs, start, end),
+        'customers': customer_community_stats(),
     }
 
     if include_private:
@@ -442,3 +443,37 @@ def customer_impact(user, include_private=True):
         result['pending'] = {'plastic_kg': _num(pending['plastic']), 'co2_saved_kg': _num(pending['co2'])}
 
     return result
+
+
+def customer_community_stats():
+    """Anonymous aggregate of customer impact from confirmed purchases (safe to show publicly)."""
+    from .constants import CUSTOMER_LEVELS
+
+    per_customer = list(
+        ImpactEntry.objects.filter(source=ImpactEntry.SOURCE_SALE, order_item__isnull=False)
+        .values('order_item__order__user')
+        .annotate(plastic=Sum('plastic_kg'), co2=Sum('co2_saved_kg'), units=Sum('items_count'))
+    )
+    supporters = len(per_customer)
+    plastic = sum((row['plastic'] or ZERO for row in per_customer), ZERO)
+    co2 = sum((row['co2'] or ZERO for row in per_customer), ZERO)
+
+    levels = []
+    for idx, (minimum, key, name) in enumerate(CUSTOMER_LEVELS):
+        upper = CUSTOMER_LEVELS[idx + 1][0] if idx + 1 < len(CUSTOMER_LEVELS) else None
+        count = sum(
+            1 for row in per_customer
+            if (row['plastic'] or ZERO) >= minimum and (upper is None or (row['plastic'] or ZERO) < upper)
+        )
+        levels.append({'key': key, 'name': name, 'min_kg': _num(minimum), 'count': count})
+
+    return {
+        'supporters': supporters,
+        'plastic_kg': _num(plastic),
+        'co2_saved_kg': _num(co2),
+        'products_bought': sum(row['units'] or 0 for row in per_customer),
+        'average_plastic_kg': _num(plastic / supporters) if supporters else 0.0,
+        'top_supporter_plastic_kg': _num(max((row['plastic'] or ZERO for row in per_customer), default=ZERO)),
+        'bottles_equivalent': int((plastic * 1000) / GRAMS_PER_BOTTLE),
+        'levels': levels,
+    }
