@@ -1,19 +1,67 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator
+from django.utils import timezone
+from .constants import PLASTIC_TYPE_CHOICES, AUTO_VALUE_CHOICES
 
 class ImpactMetric(models.Model):
+    """Headline metric shown on the public site, either typed in or pulled from live tracking."""
     label = models.CharField(max_length=100)
-    value = models.CharField(max_length=50)
+    value = models.CharField(max_length=50, blank=True)
+    auto_value = models.CharField(
+        max_length=40, choices=AUTO_VALUE_CHOICES, blank=True,
+        help_text="If set, the value is calculated from the impact log instead of typed in"
+    )
     description = models.CharField(max_length=255, blank=True)
     color_from = models.CharField(max_length=20, default="emerald-600")
     color_to = models.CharField(max_length=20, default="teal-600")
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name_plural = "Impact Metrics"
+        ordering = ['order', 'id']
 
     def __str__(self):
-        return f"{self.label}: {self.value}"
+        return f"{self.label}: {self.auto_value or self.value}"
+
+
+class ImpactEntry(models.Model):
+    """One line in the business impact log. Sales are recorded automatically from orders."""
+    SOURCE_SALE = 'sale'
+    SOURCE_CHOICES = [
+        ('sale', 'Product sale'),
+        ('collection', 'Plastic collection'),
+        ('production', 'Production run'),
+        ('event', 'Event / workshop'),
+        ('adjustment', 'Manual adjustment'),
+    ]
+
+    date = models.DateField(default=timezone.localdate)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='collection')
+    title = models.CharField(max_length=255, blank=True)
+    plastic_type = models.CharField(max_length=20, choices=PLASTIC_TYPE_CHOICES, blank=True)
+    plastic_kg = models.DecimalField(max_digits=12, decimal_places=3, default=0, validators=[MinValueValidator(0)])
+    co2_saved_kg = models.DecimalField(max_digits=12, decimal_places=3, default=0, validators=[MinValueValidator(0)])
+    water_saved_liters = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    items_count = models.PositiveIntegerField(default=0, help_text="Units sold (sales) or items made (production)")
+    people_engaged = models.PositiveIntegerField(default=0)
+    product = models.ForeignKey('products.Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
+    order_item = models.OneToOneField('orders.OrderItem', on_delete=models.CASCADE, null=True, blank=True, related_name='impact_entry')
+    zone = models.ForeignKey('CollectionZone', on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='impact_entries')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Impact Entries"
+        ordering = ['-date', '-created_at']
+        indexes = [models.Index(fields=['source', 'date'], name='impact_entry_source_date_idx')]
+
+    def __str__(self):
+        return f"{self.get_source_display()} {self.date}: {self.plastic_kg} kg"
 
 
 class CollectionZone(models.Model):

@@ -1,6 +1,8 @@
+from decimal import Decimal
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from impact.constants import PLASTIC_TYPE_CHOICES, GRAMS_PER_BOTTLE
 
 class Location(models.Model):
     """Delivery locations for the store"""
@@ -50,6 +52,24 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True)
     # Delivery prices by location: {location_id: price}
     delivery_prices = models.JSONField(default=dict, blank=True, help_text="Delivery prices per location as {location_id: price}")
+
+    # Environmental impact per unit sold
+    plastic_type = models.CharField(max_length=20, choices=PLASTIC_TYPE_CHOICES, blank=True)
+    plastic_recycled_kg = models.DecimalField(
+        max_digits=10, decimal_places=3, default=0, validators=[MinValueValidator(0)],
+        help_text="Kg of recycled plastic used to make one unit"
+    )
+    co2_saved_kg = models.DecimalField(
+        max_digits=10, decimal_places=3, default=0, validators=[MinValueValidator(0)],
+        help_text="Kg of CO2e avoided per unit compared to a virgin-material equivalent"
+    )
+    water_saved_liters = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+        help_text="Liters of water saved per unit compared to a virgin-material equivalent"
+    )
+    plastic_source = models.CharField(max_length=255, blank=True, help_text="Where the plastic was collected, e.g. 'Gunjur beach cleanups'")
+    impact_story = models.TextField(blank=True, help_text="Short story about this product's impact")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -58,6 +78,15 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def bottles_equivalent(self):
+        """Approximate number of plastic bottles kept out of the environment per unit."""
+        return int((self.plastic_recycled_kg * 1000) / GRAMS_PER_BOTTLE)
+
+    @property
+    def has_impact(self):
+        return any(v > Decimal('0') for v in (self.plastic_recycled_kg, self.co2_saved_kg, self.water_saved_liters))
 
 
 class ProductImage(models.Model):

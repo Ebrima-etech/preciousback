@@ -7,7 +7,8 @@ from payments.views import PaymentViewSet
 from payments.webhooks import ModemPayWebhookView
 from impact.views import (
     ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet, EventRegistrationViewSet,
-    NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet
+    NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet,
+    ImpactEntryViewSet, ImpactSummaryView
 )
 from staff.views import DepartmentViewSet, StaffViewSet
 from cms.views import (
@@ -42,6 +43,7 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 # Impact & Community
 router.register(r'impact/metrics', ImpactMetricViewSet, basename='impact-metric')
 router.register(r'impact/zones', CollectionZoneViewSet, basename='collection-zone')
+router.register(r'impact/entries', ImpactEntryViewSet, basename='impact-entry')
 router.register(r'impact/events', EventViewSet, basename='event')
 router.register(r'impact/registrations', EventRegistrationViewSet, basename='event-registration')
 router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-newsletter')
@@ -69,6 +71,7 @@ router.register(r'team-members', TeamMemberViewSet, basename='team-member')
 router.register(r'partners', PartnerViewSet, basename='partner')
 
 urlpatterns = [
+    path('impact/summary/', ImpactSummaryView.as_view(), name='impact-summary'),
     path('', include(router.urls)),
     path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),
 ]

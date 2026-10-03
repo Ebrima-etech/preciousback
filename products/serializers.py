@@ -12,13 +12,19 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'description']
 
+IMPACT_FIELDS = ['plastic_type', 'plastic_recycled_kg', 'co2_saved_kg', 'water_saved_liters',
+                 'plastic_source', 'impact_story', 'bottles_equivalent', 'has_impact']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     image = serializers.ImageField(required=False, allow_null=True)
+    bottles_equivalent = serializers.IntegerField(read_only=True)
+    has_impact = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'delivery_prices', 'created_at']
+        fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'delivery_prices', 'created_at'] + IMPACT_FIELDS
         read_only_fields = ['id', 'created_at', 'rating', 'reviews_count']
 
     def to_representation(self, instance):
@@ -43,10 +49,15 @@ class ProductImageSerializer(serializers.ModelSerializer):
 class ProductDetailSerializer(ProductSerializer):
     reviews = serializers.SerializerMethodField()
     product_images = serializers.SerializerMethodField()
+    lifetime_impact = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ProductSerializer.Meta.fields + ['reviews', 'product_images', 'updated_at']
+        fields = ProductSerializer.Meta.fields + ['reviews', 'product_images', 'lifetime_impact', 'updated_at']
+
+    def get_lifetime_impact(self, obj):
+        from impact.services import product_lifetime_impact
+        return product_lifetime_impact(obj)
 
     def get_reviews(self, obj):
         reviews = obj.product_reviews.all()
