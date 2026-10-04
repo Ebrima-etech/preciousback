@@ -6,11 +6,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission
+from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission, SAFE_METHODS
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
 from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
-from .permissions import IsStaff, IsStaffOrReadOnly, is_staff_user
+from staff.access import has_any_permission, require
 from .services import compute_summary, customer_impact, rebuild_sales_impact, sponsorship_stats, user_from_share_token
 from .constants import SPONSORSHIP_ITEMS
 
@@ -36,23 +36,23 @@ from .serializers import (ImpactMetricSerializer, ImpactEntrySerializer, Collect
 class ImpactMetricViewSet(viewsets.ModelViewSet):
     """Headline metrics: public read (active only), staff write."""
     serializer_class = ImpactMetricSerializer
-    permission_classes = [IsStaffOrReadOnly]
+    permission_classes = [require('create_reports', 'manage_content', read_public=True)]
     pagination_class = None
 
     def get_queryset(self):
         qs = ImpactMetric.objects.all()
-        if not is_staff_user(self.request.user):
+        if not has_any_permission(self.request.user, 'create_reports', 'manage_content', 'view_analytics'):
             qs = qs.filter(is_active=True)
         return qs
 
 
 class CollectionZoneViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionZoneSerializer
-    permission_classes = [IsStaffOrReadOnly]
+    permission_classes = [require('create_reports', read_public=True)]
 
     def get_queryset(self):
         qs = CollectionZone.objects.all().order_by('name')
-        if not is_staff_user(self.request.user):
+        if not has_any_permission(self.request.user, 'create_reports', 'view_analytics'):
             qs = qs.filter(active=True)
         return qs
 
@@ -60,12 +60,18 @@ class CollectionZoneViewSet(viewsets.ModelViewSet):
 class ImpactEntryViewSet(viewsets.ModelViewSet):
     """The business impact log. Sale entries created from orders are read-only here."""
     serializer_class = ImpactEntrySerializer
-    permission_classes = [IsStaff]
+    permission_classes = [require('create_reports')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['source', 'product', 'zone', 'plastic_type']
     search_fields = ['title', 'notes', 'product__name']
     ordering_fields = ['date', 'plastic_kg', 'co2_saved_kg', 'created_at']
     ordering = ['-date', '-created_at']
+
+    def get_permissions(self):
+        # Analysts can read and export the log; recording or changing entries needs Create Reports
+        if self.request.method in SAFE_METHODS:
+            return [require('create_reports', 'view_analytics')()]
+        return [require('create_reports')()]
 
     def get_queryset(self):
         qs = ImpactEntry.objects.select_related('product', 'zone', 'created_by')
@@ -136,22 +142,22 @@ class ImpactSummaryView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         if start and end and start > end:
             return Response({'error': 'start must be before end'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(compute_summary(start, end, include_private=is_staff_user(request.user)))
+        return Response(compute_summary(start, end, include_private=has_any_permission(request.user, 'view_analytics', 'create_reports', 'view_reports')))
 
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.all().order_by('date')
     serializer_class = EventSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [require('manage_community')]
 
     def get_permissions(self):
         # Visitors can browse events and register; managing events is staff-only
         if self.action in ('list', 'retrieve', 'register'):
             return [AllowAny()]
-        return [IsStaff()]
+        return [require('manage_community')()]
 
     def get_queryset(self):
         qs = Event.objects.all().order_by('date')
-        if not is_staff_user(self.request.user):
+        if not has_any_permission(self.request.user, 'manage_community'):
             qs = qs.filter(is_active=True)
         return qs
 
@@ -174,7 +180,7 @@ class EventViewSet(viewsets.ModelViewSet):
             return Response({'message': 'Registered successfully', 'data': serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=['get'], permission_classes=[IsStaff])
+    @action(detail=True, methods=['get'], permission_classes=[require('manage_community')])
     def registrations(self, request, pk=None):
         event = self.get_object()
         registrations = EventRegistration.objects.filter(event=event)
@@ -197,6 +203,12 @@ class BulkRFQViewSet(viewsets.ModelViewSet):
     serializer_class = BulkRFQSerializer
     permission_classes = [IsAuthenticatedOrCreateOnly]
 
+    def get_permissions(self):
+        # Anyone can send a bulk request; reviewing them is for community staff
+        if self.action == 'create':
+            return [AllowAny()]
+        return [require('manage_community')()]
+
     def create(self, request):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -207,7 +219,7 @@ class BulkRFQViewSet(viewsets.ModelViewSet):
 class EventRegistrationViewSet(viewsets.ModelViewSet):
     queryset = EventRegistration.objects.all()
     serializer_class = EventRegistrationSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [require('manage_community')]
 
 class SponsorshipSubmitThrottle(AnonRateThrottle):
     rate = '20/hour'
@@ -224,7 +236,7 @@ class SponsorshipViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('create', 'options_info'):
             return [AllowAny()]
-        return [IsStaff()]
+        return [require('manage_community', 'manage_payments')()]
 
     def get_throttles(self):
         if self.action == 'create':

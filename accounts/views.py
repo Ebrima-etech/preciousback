@@ -1,7 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from staff.access import require
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 import logging
@@ -73,6 +75,17 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        # Everyone manages their own profile; listing or changing other users needs Manage Users
+        if self.action in ('profile', 'update_profile'):
+            return [IsAuthenticated()]
+        return [require('manage_users')()]
+
+    def perform_destroy(self, instance):
+        if instance.is_superuser and not self.request.user.is_superuser:
+            raise PermissionDenied('Only a superuser can delete a superuser.')
+        instance.delete()
 
     @action(detail=False, methods=['get'])
     def profile(self, request):

@@ -4,11 +4,12 @@
 - Other users with an active Staff profile get a dashboard built from the
   permissions on their profile.
 """
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 ALL_PERMISSIONS = [
     'view_reports', 'edit_products', 'manage_orders', 'manage_payments', 'manage_users',
     'manage_staff', 'view_analytics', 'manage_inventory', 'export_data', 'create_reports',
+    'manage_content', 'manage_community',
 ]
 
 # Suggested permissions per role, used to prefill the staff form
@@ -16,8 +17,8 @@ ROLE_DEFAULT_PERMISSIONS = {
     'manager': ALL_PERMISSIONS,
     'supervisor': ['view_reports', 'manage_orders', 'manage_inventory', 'view_analytics'],
     'accountant': ['view_reports', 'manage_payments', 'view_analytics', 'export_data', 'create_reports'],
-    'marketer': ['view_reports', 'view_analytics', 'edit_products'],
-    'coordinator': ['manage_orders', 'view_reports', 'view_analytics'],
+    'marketer': ['view_reports', 'view_analytics', 'edit_products', 'manage_content'],
+    'coordinator': ['manage_orders', 'view_reports', 'view_analytics', 'manage_community'],
     'technician': ['manage_inventory', 'edit_products'],
     'deliverer': ['manage_orders'],
     'driver': ['manage_orders'],
@@ -91,3 +92,25 @@ class HasStaffPermission(BasePermission):
     def has_permission(self, request, view):
         code = getattr(view, 'required_permission', None)
         return bool(code) and has_staff_permission(request.user, code)
+
+
+def has_any_permission(user, *codes):
+    perms = set(effective_permissions(user))
+    return any(code in perms for code in codes)
+
+
+def require(*codes, read_public=False):
+    """Permission class: full admins, or staff holding any of `codes`.
+
+    With read_public=True, GET/HEAD/OPTIONS are open to everyone.
+    """
+    class RequiresStaffPermission(BasePermission):
+        message = 'You do not have permission to do this.'
+
+        def has_permission(self, request, view):
+            if read_public and request.method in SAFE_METHODS:
+                return True
+            return has_any_permission(request.user, *codes)
+
+    RequiresStaffPermission.__name__ = 'Requires_' + '_or_'.join(codes)
+    return RequiresStaffPermission

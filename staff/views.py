@@ -8,12 +8,11 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from impact.permissions import IsStaff
 from orders.models import Order
 from products.models import Product
 from .access import (
     DELIVERY_ROLES, ROLE_DEFAULT_PERMISSIONS, HasStaffPermission, IsStaffMember,
-    effective_permissions, is_full_admin, modules_for, staff_profile,
+    effective_permissions, has_any_permission, is_full_admin, modules_for, require, staff_profile,
 )
 from .dashboard import build_dashboard, dashboard_for_department, dashboard_for_staff
 from .models import Department, Staff
@@ -33,7 +32,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     """Staff-only: departments include budgets."""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [require('manage_staff')]
 
     def perform_create(self, serializer):
         if not serializer.validated_data.get('manager'):
@@ -55,9 +54,43 @@ class StaffViewSet(viewsets.ModelViewSet):
     """Staff-only: staff records include salaries, addresses and phone numbers."""
     queryset = Staff.objects.select_related('user', 'department').all()
     serializer_class = StaffSerializer
-    permission_classes = [IsStaff]
+    permission_classes = [require('manage_staff')]
+
+    def _escalation_error(self, target=None):
+        """Staff managers who aren't full admins can't create admins or hand out permissions they don't have."""
+        user = self.request.user
+        if is_full_admin(user):
+            return None
+        if target is not None and (target.user.is_staff or target.user.is_superuser):
+            return Response({'error': 'Only full admins can change an admin’s staff record.'}, status=status.HTTP_403_FORBIDDEN)
+        if str(self.request.data.get('admin_access', '')).lower() in ('true', '1', 'yes'):
+            return Response({'admin_access': ['Only full admins can grant admin access.']}, status=status.HTTP_403_FORBIDDEN)
+        requested = self.request.data.get('permissions')
+        if isinstance(requested, list):
+            beyond = sorted(set(requested) - set(effective_permissions(user)))
+            if beyond:
+                return Response(
+                    {'permissions': [f'You can only grant permissions you have yourself (not: {", ".join(beyond)}).']},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        return None
+
+    def update(self, request, *args, **kwargs):
+        error = self._escalation_error(self.get_object())
+        if error:
+            return error
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        error = self._escalation_error(self.get_object())
+        if error:
+            return error
+        return super().destroy(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
+        error = self._escalation_error()
+        if error:
+            return error
         if request.data.get('user_id'):
             return self._create_for_existing_user(request)
 
@@ -67,6 +100,9 @@ class StaffViewSet(viewsets.ModelViewSet):
         if not email:
             return Response({'email': ['Email is required.']}, status=status.HTTP_400_BAD_REQUEST)
         existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user and (existing_user.is_staff or existing_user.is_superuser) and not is_full_admin(request.user):
+            # Reusing an account resets its password, so only full admins may do it for admin accounts
+            return Response({'email': ['Only full admins can add an admin account as staff.']}, status=status.HTTP_403_FORBIDDEN)
         if existing_user and Staff.objects.filter(user=existing_user).exists():
             return Response({'email': ['This person is already a staff member.']}, status=status.HTTP_400_BAD_REQUEST)
         if not (request.data.get('first_name') or '').strip():
@@ -187,6 +223,9 @@ class StaffViewSet(viewsets.ModelViewSet):
                 user.save(update_fields=['is_staff', 'is_active'])
 
     def _set_active(self, staff, active):
+        error = self._escalation_error(staff)
+        if error:
+            return error
         if staff.user_id == self.request.user.id and not active:
             return Response({'error': 'You cannot deactivate your own account.'}, status=status.HTTP_400_BAD_REQUEST)
         staff.is_active = active
@@ -206,6 +245,9 @@ class StaffViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):
         staff = self.get_object()
+        error = self._escalation_error(staff)
+        if error:
+            return error
         new_password = get_random_string(12)
         staff.user.set_password(new_password)
         staff.user.save()
@@ -219,6 +261,9 @@ class StaffViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def assign_permissions(self, request, pk=None):
         staff = self.get_object()
+        error = self._escalation_error(staff)
+        if error:
+            return error
         serializer = self.get_serializer(staff, data={'permissions': request.data.get('permissions', [])}, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -278,8 +323,8 @@ class StaffDashboardView(APIView):
         department_id = request.query_params.get('department')
         staff_id = request.query_params.get('staff')
 
-        if (department_id or staff_id) and not admin:
-            return Response({'error': 'Only admins can view other dashboards.'}, status=status.HTTP_403_FORBIDDEN)
+        if (department_id or staff_id) and not (admin or has_any_permission(user, 'manage_staff')):
+            return Response({'error': 'Only admins and staff managers can view other dashboards.'}, status=status.HTTP_403_FORBIDDEN)
         if department_id:
             department = Department.objects.filter(pk=department_id).first()
             if not department:
@@ -356,7 +401,7 @@ class StaffStockView(APIView):
 
 class RoleDefaultsView(APIView):
     """Suggested permissions per role, used to prefill the staff form."""
-    permission_classes = [IsStaff]
+    permission_classes = [require('manage_staff')]
 
     def get(self, request):
         return Response(ROLE_DEFAULT_PERMISSIONS)

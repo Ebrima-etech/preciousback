@@ -43,6 +43,8 @@ class Staff(models.Model):
         ('manage_inventory', 'Manage Inventory'),
         ('export_data', 'Export Data'),
         ('create_reports', 'Create Reports'),
+        ('manage_content', 'Manage Website Content'),
+        ('manage_community', 'Manage Community (events, requests, sponsorships, messages)'),
     ]
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='staff_profile')

@@ -191,3 +191,79 @@ class StaffDashboardTests(TestCase):
     def test_login_flags_staff_members(self):
         response = self.client.post('/api/auth/login/', {'email': 'driver@example.com', 'password': 'pass12345'}, format='json')
         self.assertTrue(response.data['user']['is_staff_member'])
+
+
+class AdminPagePermissionTests(TestCase):
+    """Admin APIs follow staff permissions; full admins keep everything."""
+
+    def setUp(self):
+        from orders.models import Order
+        from products.models import Category
+
+        self.client = APIClient()
+        self.admin = User.objects.create_user('root@example.com', 'pass12345', first_name='Ro', last_name='Ot', is_staff=True)
+        self.customer = User.objects.create_user('shopper@example.com', 'pass12345', first_name='Sh', last_name='Op')
+        self.department = Department.objects.create(name='Operations')
+        self.category = Category.objects.create(name='Furniture')
+        self.order = Order.objects.create(user=self.customer, total_price=Decimal('100'), status='pending')
+
+    def staff_with(self, email, *permissions, role='coordinator'):
+        user = User.objects.create_user(email, 'pass12345', first_name='St', last_name='Aff')
+        Staff.objects.create(user=user, department=self.department, role=role, permissions=list(permissions), hire_date='2026-01-01')
+        return user
+
+    def product_payload(self):
+        return {'name': 'Bench', 'description': 'd', 'price': '900', 'stock': 3, 'category': self.category.id}
+
+    def test_products_need_edit_products(self):
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.post('/api/products/', self.product_payload(), format='json').status_code, 403)
+        self.client.force_authenticate(self.staff_with('editor@example.com', 'edit_products'))
+        self.assertEqual(self.client.post('/api/products/', self.product_payload(), format='json').status_code, 201)
+
+    def test_order_changes_need_manage_orders(self):
+        self.client.force_authenticate(self.customer)  # not even on their own order
+        self.assertEqual(self.client.patch(f'/api/orders/{self.order.id}/', {'status': 'delivered'}, format='json').status_code, 403)
+        self.client.force_authenticate(self.staff_with('orders@example.com', 'manage_orders'))
+        self.assertEqual(self.client.patch(f'/api/orders/{self.order.id}/', {'status': 'processing'}, format='json').status_code, 200)
+
+    def test_reporting_staff_can_read_all_orders_but_not_change_them(self):
+        self.client.force_authenticate(self.staff_with('analyst@example.com', 'view_reports'))
+        self.assertEqual(self.client.get('/api/orders/').data['count'], 1)
+        self.assertEqual(self.client.patch(f'/api/orders/{self.order.id}/', {'status': 'processing'}, format='json').status_code, 403)
+
+    def test_user_list_needs_manage_users(self):
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get('/api/users/').status_code, 403)
+        self.assertEqual(self.client.get('/api/users/profile/').status_code, 200)
+        self.client.force_authenticate(self.staff_with('support@example.com', 'manage_users'))
+        self.assertEqual(self.client.get('/api/users/').status_code, 200)
+
+    def test_content_staff_edit_cms_and_see_inactive_items(self):
+        from cms.models import Partner
+        Partner.objects.create(name='Hidden', is_active=False)
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.post('/api/partners/', {'name': 'X'}, format='json').status_code, 403)
+        self.assertEqual(self.client.get('/api/partners/').data['count'], 0)
+        self.client.force_authenticate(self.staff_with('web@example.com', 'manage_content'))
+        self.assertEqual(self.client.get('/api/partners/').data['count'], 1)
+        self.assertEqual(self.client.post('/api/partners/', {'name': 'X'}, format='json').status_code, 201)
+
+    def test_full_admin_keeps_everything(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.post('/api/products/', self.product_payload(), format='json').status_code, 201)
+        self.assertEqual(self.client.get('/api/users/').status_code, 200)
+        self.assertEqual(self.client.get('/api/impact/sponsorship/').status_code, 200)
+
+    def test_staff_manager_cannot_escalate(self):
+        manager = self.staff_with('hr@example.com', 'manage_staff', 'view_reports', role='manager')
+        self.client.force_authenticate(manager)
+        base = {'first_name': 'Ne', 'last_name': 'W', 'email': 'new@example.com', 'department': self.department.id,
+                'role': 'intern', 'hire_date': '2026-02-01'}
+        self.assertEqual(self.client.post('/api/staff/staff/', {**base, 'admin_access': True}, format='json').status_code, 403)
+        self.assertEqual(self.client.post('/api/staff/staff/', {**base, 'permissions': ['manage_payments']}, format='json').status_code, 403)
+        self.assertEqual(self.client.post('/api/staff/staff/', {**base, 'permissions': ['view_reports']}, format='json').status_code, 201)
+
+        admin_staff = Staff.objects.create(user=self.admin, department=self.department, role='manager', hire_date='2026-01-01')
+        self.assertEqual(self.client.post(f'/api/staff/staff/{admin_staff.id}/reset_password/').status_code, 403)
+        self.assertEqual(self.client.post('/api/staff/staff/', {**base, 'email': 'root@example.com'}, format='json').status_code, 403)

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
+from staff.access import has_any_permission, require
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import (
     Page, Testimonial, Banner, FAQ, BlogPost, Service,
@@ -16,7 +17,20 @@ from .serializers import (
     HeroSlideSerializer, TeamMemberSerializer, PartnerSerializer
 )
 
-class PageViewSet(viewsets.ModelViewSet):
+class ContentPermissionsMixin:
+    """Anyone can read published content; Manage Content staff can edit it and also see unpublished/inactive items."""
+
+    def get_permissions(self):
+        return [require('manage_content', read_public=True)()]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if has_any_permission(self.request.user, 'manage_content'):
+            return queryset.model.objects.all()
+        return queryset
+
+
+class PageViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Page.objects.filter(is_published=True)
     serializer_class = PageSerializer
     permission_classes = [AllowAny]
@@ -31,7 +45,7 @@ class PageViewSet(viewsets.ModelViewSet):
         except Page.DoesNotExist:
             return Response({'detail': 'Page not found'}, status=status.HTTP_404_NOT_FOUND)
 
-class TestimonialViewSet(viewsets.ModelViewSet):
+class TestimonialViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Testimonial.objects.all()
     serializer_class = TestimonialSerializer
     permission_classes = [AllowAny]
@@ -39,7 +53,7 @@ class TestimonialViewSet(viewsets.ModelViewSet):
     filterset_fields = ['is_featured']
     ordering = ['-created_at']
 
-class BannerViewSet(viewsets.ModelViewSet):
+class BannerViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Banner.objects.filter(is_active=True)
     serializer_class = BannerSerializer
     permission_classes = [AllowAny]
@@ -47,7 +61,7 @@ class BannerViewSet(viewsets.ModelViewSet):
     filterset_fields = ['banner_type', 'is_active']
     ordering = ['order', '-created_at']
 
-class FAQViewSet(viewsets.ModelViewSet):
+class FAQViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = FAQ.objects.filter(is_published=True)
     serializer_class = FAQSerializer
     permission_classes = [AllowAny]
@@ -56,7 +70,7 @@ class FAQViewSet(viewsets.ModelViewSet):
     search_fields = ['question', 'answer']
     ordering = ['order', '-created_at']
 
-class BlogPostViewSet(viewsets.ModelViewSet):
+class BlogPostViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = BlogPost.objects.filter(is_published=True)
     serializer_class = BlogPostSerializer
     permission_classes = [AllowAny]
@@ -71,7 +85,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
             return BlogPostDetailSerializer
         return BlogPostSerializer
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Service.objects.filter(is_active=True)
     serializer_class = ServiceSerializer
     permission_classes = [AllowAny]
@@ -93,6 +107,12 @@ class NewsletterViewSet(viewsets.ModelViewSet):
     serializer_class = NewsletterSerializer
     permission_classes = [AllowAny]
 
+    def get_permissions(self):
+        # Anyone can subscribe; the subscriber list is for content staff
+        if self.action == 'create':
+            return [AllowAny()]
+        return [require('manage_content')()]
+
     def create(self, request, *args, **kwargs):
         email = request.data.get('email')
         if not email:
@@ -112,6 +132,12 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['status']
     ordering = ['-created_at']
+
+    def get_permissions(self):
+        # Anyone can send a message; reading and answering them is for community staff
+        if self.action == 'create':
+            return [AllowAny()]
+        return [require('manage_community')()]
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -144,7 +170,7 @@ class ContactMessageViewSet(viewsets.ModelViewSet):
         message.save()
         return Response(ContactMessageSerializer(message).data)
 
-class FeatureViewSet(viewsets.ModelViewSet):
+class FeatureViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Feature.objects.filter(is_active=True)
     serializer_class = FeatureSerializer
     permission_classes = [AllowAny]
@@ -175,31 +201,26 @@ class SiteSettingsViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class HeroSlideViewSet(viewsets.ModelViewSet):
+class HeroSlideViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = HeroSlide.objects.all()
     serializer_class = HeroSlideSerializer
     ordering = ['order']
 
     def get_queryset(self):
-        # Allow authenticated users to see all slides, others see only active
-        if self.request.user and self.request.user.is_authenticated:
+        # Content staff see all slides (to edit inactive ones); visitors only see active slides
+        if has_any_permission(self.request.user, 'manage_content'):
             return HeroSlide.objects.all()
         return HeroSlide.objects.filter(is_active=True)
 
-    def get_permissions(self):
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [AllowAny()]
-        return [IsAuthenticated()]
 
-
-class TeamMemberViewSet(viewsets.ModelViewSet):
+class TeamMemberViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = TeamMember.objects.filter(is_active=True)
     serializer_class = TeamMemberSerializer
     permission_classes = [AllowAny]
     ordering = ['order', 'name']
 
 
-class PartnerViewSet(viewsets.ModelViewSet):
+class PartnerViewSet(ContentPermissionsMixin, viewsets.ModelViewSet):
     queryset = Partner.objects.filter(is_active=True)
     serializer_class = PartnerSerializer
     permission_classes = [AllowAny]

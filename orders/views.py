@@ -10,6 +10,10 @@ from .models import Order, Cart, CartItem, OrderItem
 from .serializers import OrderSerializer, CartSerializer, CartItemSerializer
 from products.models import Product
 from payments.modempay import create_payment_intent, ModemPayError
+from staff.access import has_any_permission, require
+
+# Staff who can see every order (order handling, reporting, payments, customer management)
+ORDER_READ_PERMISSIONS = ("manage_orders", "view_reports", "view_analytics", "manage_payments", "manage_users")
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +21,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        # Customers can view their own orders and place new ones; changing orders is for order staff
+        if self.action in ('update', 'partial_update', 'destroy', 'update_status'):
+            return [require('manage_orders')()]
+        return [IsAuthenticated()]
+
     def get_queryset(self):
-        # Admins/staff see all orders, regular users see only their own
-        if self.request.user.is_staff:
+        # Staff who work with orders see all of them; customers only see their own
+        if has_any_permission(self.request.user, *ORDER_READ_PERMISSIONS):
             return Order.objects.all()
         return Order.objects.filter(user=self.request.user)
 
