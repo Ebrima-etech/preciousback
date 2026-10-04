@@ -10,7 +10,10 @@ from impact.views import (
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet,
     ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView
 )
-from staff.views import DepartmentViewSet, StaffViewSet
+from staff.views import (
+    DepartmentViewSet, StaffViewSet, StaffMeView, StaffDashboardView, StaffOrderStatusView, StaffStockView,
+    RoleDefaultsView,
+)
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
     BlogPostViewSet, ServiceViewSet, ContactInformationViewSet,
@@ -73,6 +76,11 @@ router.register(r'partners', PartnerViewSet, basename='partner')
 urlpatterns = [
     path('impact/summary/', ImpactSummaryView.as_view(), name='impact-summary'),
     path('impact/me/', CustomerImpactView.as_view(), name='impact-me'),
+    path('staff/me/', StaffMeView.as_view(), name='staff-me'),
+    path('staff/dashboard/', StaffDashboardView.as_view(), name='staff-dashboard'),
+    path('staff/dashboard/orders/<int:pk>/status/', StaffOrderStatusView.as_view(), name='staff-order-status'),
+    path('staff/dashboard/products/<int:pk>/stock/', StaffStockView.as_view(), name='staff-product-stock'),
+    path('staff/role-defaults/', RoleDefaultsView.as_view(), name='staff-role-defaults'),
     path('impact/share/<str:token>/', SharedImpactView.as_view(), name='impact-share'),
     path('', include(router.urls)),
     path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),

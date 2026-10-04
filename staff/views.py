@@ -7,7 +7,15 @@ from django.utils.crypto import get_random_string
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from impact.permissions import IsStaff
+from orders.models import Order
+from products.models import Product
+from .access import (
+    DELIVERY_ROLES, ROLE_DEFAULT_PERMISSIONS, HasStaffPermission, IsStaffMember,
+    effective_permissions, is_full_admin, modules_for, staff_profile,
+)
+from .dashboard import build_dashboard, dashboard_for_department, dashboard_for_staff
 from .models import Department, Staff
 from .serializers import DepartmentSerializer, StaffSerializer
 
@@ -231,3 +239,124 @@ class StaffViewSet(viewsets.ModelViewSet):
             return Response({'error': 'role parameter required'}, status=status.HTTP_400_BAD_REQUEST)
         staff = self.get_queryset().filter(role=role, is_active=True)
         return Response(self.get_serializer(staff, many=True).data)
+
+
+# --- Staff dashboards -------------------------------------------------------------
+
+
+
+class StaffMeView(APIView):
+    """Who the signed-in staff member is and which dashboard sections they get."""
+    permission_classes = [IsStaffMember]
+
+    def get(self, request):
+        user = request.user
+        profile = staff_profile(user)
+        permissions = effective_permissions(user)
+        return Response({
+            'is_admin': is_full_admin(user),
+            'user': {'id': user.id, 'name': user.get_full_name() or user.email, 'email': user.email},
+            'staff': {
+                'id': profile.id,
+                'role': profile.role,
+                'role_display': profile.get_role_display(),
+                'department_id': profile.department_id,
+                'department': profile.department.name,
+            } if profile else None,
+            'permissions': permissions,
+            'modules': modules_for(permissions, profile.role if profile else None),
+        })
+
+
+class StaffDashboardView(APIView):
+    """A staff member's own dashboard. Admins can view any department (?department=) or staff member (?staff=)."""
+    permission_classes = [IsStaffMember]
+
+    def get(self, request):
+        user = request.user
+        admin = is_full_admin(user)
+        department_id = request.query_params.get('department')
+        staff_id = request.query_params.get('staff')
+
+        if (department_id or staff_id) and not admin:
+            return Response({'error': 'Only admins can view other dashboards.'}, status=status.HTTP_403_FORBIDDEN)
+        if department_id:
+            department = Department.objects.filter(pk=department_id).first()
+            if not department:
+                return Response({'error': 'Department not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'viewing': {'type': 'department', 'name': department.name}, **dashboard_for_department(department)})
+        if staff_id:
+            staff = Staff.objects.select_related('user', 'department').filter(pk=staff_id).first()
+            if not staff:
+                return Response({'error': 'Staff member not found.'}, status=status.HTTP_404_NOT_FOUND)
+            name = staff.user.get_full_name() or staff.user.email
+            return Response({
+                'viewing': {'type': 'staff', 'name': name, 'role': staff.get_role_display()},
+                **dashboard_for_staff(staff, viewer_is_admin=True),
+            })
+
+        profile = staff_profile(user)
+        if profile and not admin:
+            return Response({'viewing': {'type': 'self'}, **dashboard_for_staff(profile)})
+        # Admins without (or with) a profile: every section, plus their department if they have one
+        data = build_dashboard(
+            permissions=effective_permissions(user),
+            department=profile.department if profile else None,
+            show_budget=True, show_contacts=True,
+        )
+        return Response({'viewing': {'type': 'self'}, **data})
+
+
+class StaffOrderStatusView(APIView):
+    """Change an order's status from the dashboard. Drivers/deliverers can only move orders out for delivery."""
+    permission_classes = [HasStaffPermission]
+    required_permission = 'manage_orders'
+
+    def post(self, request, pk):
+        order = Order.objects.filter(pk=pk).first()
+        if not order:
+            return Response({'error': 'Order not found.'}, status=status.HTTP_404_NOT_FOUND)
+        new_status = request.data.get('status')
+        if new_status not in dict(Order.STATUS_CHOICES):
+            return Response({'error': 'Invalid status.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        profile = staff_profile(request.user)
+        if profile and profile.role in DELIVERY_ROLES and not is_full_admin(request.user):
+            allowed = {('processing', 'shipped'), ('shipped', 'delivered'), ('processing', 'delivered')}
+            if (order.status, new_status) not in allowed:
+                return Response(
+                    {'error': 'Deliveries can only be marked as shipped or delivered.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        order.status = new_status
+        order.save()  # triggers impact tracking
+        return Response({'id': order.id, 'status': order.status, 'status_label': order.get_status_display()})
+
+
+class StaffStockView(APIView):
+    """Set a product's stock level from the inventory dashboard."""
+    permission_classes = [HasStaffPermission]
+    required_permission = 'manage_inventory'
+
+    def post(self, request, pk):
+        product = Product.objects.filter(pk=pk).first()
+        if not product:
+            return Response({'error': 'Product not found.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            stock = int(request.data.get('stock'))
+        except (TypeError, ValueError):
+            return Response({'error': 'Stock must be a whole number.'}, status=status.HTTP_400_BAD_REQUEST)
+        if stock < 0 or stock > 1_000_000:
+            return Response({'error': 'Stock must be between 0 and 1,000,000.'}, status=status.HTTP_400_BAD_REQUEST)
+        product.stock = stock
+        product.save(update_fields=['stock', 'updated_at'])
+        return Response({'id': product.id, 'name': product.name, 'stock': product.stock})
+
+
+class RoleDefaultsView(APIView):
+    """Suggested permissions per role, used to prefill the staff form."""
+    permission_classes = [IsStaff]
+
+    def get(self, request):
+        return Response(ROLE_DEFAULT_PERMISSIONS)

@@ -121,3 +121,73 @@ class StaffApiTests(TestCase):
     def test_candidates_is_staff_only(self):
         self.client.force_authenticate(self.customer)
         self.assertEqual(self.client.get('/api/staff/staff/candidates/').status_code, 403)
+
+
+class StaffDashboardTests(TestCase):
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        from products.models import Category, Product
+
+        self.client = APIClient()
+        self.admin = User.objects.create_user('boss@example.com', 'pass12345', first_name='Bo', last_name='Ss', is_staff=True)
+        self.customer = User.objects.create_user('buyer@example.com', 'pass12345', first_name='Bu', last_name='Yer')
+        self.logistics = Department.objects.create(name='Logistics', budget_allocation=Decimal('1000'))
+        self.driver_user = User.objects.create_user('driver@example.com', 'pass12345', first_name='Dr', last_name='Iver')
+        self.driver = Staff.objects.create(user=self.driver_user, department=self.logistics, role='driver',
+                                           permissions=['manage_orders'], hire_date='2026-01-01', phone_number='+220 1')
+        self.tech_user = User.objects.create_user('tech@example.com', 'pass12345', first_name='Te', last_name='Ch')
+        Staff.objects.create(user=self.tech_user, department=self.logistics, role='technician',
+                             permissions=['manage_inventory'], hire_date='2026-01-01')
+        category = Category.objects.create(name='Furniture')
+        self.product = Product.objects.create(name='Stool', description='d', price=Decimal('500'), category=category, stock=2)
+        self.order = Order.objects.create(user=self.customer, total_price=Decimal('500'), status='processing',
+                                          notes='Deliver to: Awa\nPhone: +220 7\nLocation: Brikama')
+        OrderItem.objects.create(order=self.order, product=self.product, quantity=1, price=Decimal('500'))
+
+    def test_customers_cannot_use_staff_dashboard(self):
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get('/api/staff/me/').status_code, 403)
+        self.assertEqual(self.client.get('/api/staff/dashboard/').status_code, 403)
+
+    def test_driver_gets_deliveries_only(self):
+        self.client.force_authenticate(self.driver_user)
+        me = self.client.get('/api/staff/me/').data
+        self.assertFalse(me['is_admin'])
+        self.assertEqual(me['modules'], ['deliveries'])
+
+        data = self.client.get('/api/staff/dashboard/').data
+        self.assertEqual(list(data['sections']), ['deliveries'])
+        delivery = data['sections']['deliveries']['orders'][0]['delivery']
+        self.assertEqual(delivery['location'], 'Brikama')
+        self.assertNotIn('budget_allocation', data['department'])
+        self.assertNotIn('phone', data['department']['members'][0])
+
+    def test_driver_can_only_move_orders_forward_for_delivery(self):
+        self.client.force_authenticate(self.driver_user)
+        url = f'/api/staff/dashboard/orders/{self.order.id}/status/'
+        self.assertEqual(self.client.post(url, {'status': 'cancelled'}, format='json').status_code, 403)
+        self.assertEqual(self.client.post(url, {'status': 'shipped'}, format='json').status_code, 200)
+        self.assertEqual(self.client.post(url, {'status': 'delivered'}, format='json').status_code, 200)
+
+    def test_technician_updates_stock_but_not_orders(self):
+        self.client.force_authenticate(self.tech_user)
+        data = self.client.get('/api/staff/dashboard/').data
+        self.assertEqual(list(data['sections']), ['inventory'])
+        self.assertEqual(data['sections']['inventory']['low_stock'][0]['name'], 'Stool')
+        self.assertEqual(self.client.post(f'/api/staff/dashboard/products/{self.product.id}/stock/', {'stock': 40}, format='json').status_code, 200)
+        self.assertEqual(self.client.post(f'/api/staff/dashboard/orders/{self.order.id}/status/', {'status': 'shipped'}, format='json').status_code, 403)
+
+    def test_admin_can_view_department_and_staff_dashboards(self):
+        self.client.force_authenticate(self.admin)
+        dept = self.client.get('/api/staff/dashboard/', {'department': self.logistics.id}).data
+        self.assertEqual(set(dept['modules']), {'orders', 'inventory'})
+        self.assertEqual(dept['department']['budget_allocation'], 1000.0)
+        person = self.client.get('/api/staff/dashboard/', {'staff': self.driver.id}).data
+        self.assertEqual(person['modules'], ['deliveries'])
+
+        self.client.force_authenticate(self.driver_user)
+        self.assertEqual(self.client.get('/api/staff/dashboard/', {'department': self.logistics.id}).status_code, 403)
+
+    def test_login_flags_staff_members(self):
+        response = self.client.post('/api/auth/login/', {'email': 'driver@example.com', 'password': 'pass12345'}, format='json')
+        self.assertTrue(response.data['user']['is_staff_member'])

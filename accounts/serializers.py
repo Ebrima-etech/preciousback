@@ -9,11 +9,17 @@ class AddressSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(many=True, read_only=True)
+    is_staff_member = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'addresses', 'date_joined', 'is_staff', 'is_superuser']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'date_of_birth', 'addresses', 'date_joined', 'is_staff', 'is_superuser', 'is_staff_member']
         read_only_fields = ['id', 'date_joined', 'is_staff', 'is_superuser']
+
+    def get_is_staff_member(self, obj):
+        """True for anyone with an active staff profile (they can use the staff dashboard)."""
+        profile = getattr(obj, 'staff_profile', None)
+        return bool(profile and profile.is_active)
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
