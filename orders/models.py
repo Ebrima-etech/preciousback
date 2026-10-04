@@ -41,6 +41,21 @@ class Order(models.Model):
     payment_reference = models.CharField(max_length=255, blank=True, db_index=True)
     stock_deducted = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
+
+    # Delivery details. Gambian orders use delivery_location; international orders use the address fields.
+    shipping_country = models.CharField(max_length=2, default='GM')
+    shipping_name = models.CharField(max_length=255, blank=True)
+    shipping_phone = models.CharField(max_length=40, blank=True)
+    shipping_email = models.EmailField(blank=True)
+    delivery_location = models.CharField(max_length=255, blank=True, help_text='Gambian delivery area')
+    shipping_address_line1 = models.CharField(max_length=255, blank=True, help_text='Street address')
+    shipping_house_number = models.CharField(max_length=50, blank=True, help_text='House / apartment / unit')
+    shipping_address_line2 = models.CharField(max_length=255, blank=True)
+    shipping_city = models.CharField(max_length=120, blank=True)
+    shipping_region = models.CharField(max_length=120, blank=True, help_text='State / province / region')
+    shipping_postal_code = models.CharField(max_length=20, blank=True)
+    shipping_po_box = models.CharField(max_length=50, blank=True)
+    delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,6 +64,27 @@ class Order(models.Model):
 
     def __str__(self):
         return f'Order #{self.id} - {self.user.email}'
+
+    @property
+    def is_international(self):
+        return (self.shipping_country or 'GM').upper() != 'GM'
+
+    def shipping_address_lines(self):
+        """The delivery address as display lines."""
+        from .countries import country_name
+
+        if not self.is_international:
+            return [line for line in (self.shipping_name, self.delivery_location, 'The Gambia') if line]
+        street = ' '.join(part for part in (self.shipping_house_number, self.shipping_address_line1) if part)
+        city_line = ', '.join(part for part in (self.shipping_city, self.shipping_region, self.shipping_postal_code) if part)
+        return [line for line in (
+            self.shipping_name,
+            street,
+            self.shipping_address_line2,
+            f'PO Box {self.shipping_po_box}' if self.shipping_po_box else '',
+            city_line,
+            country_name(self.shipping_country),
+        ) if line]
 
     def save(self, *args, **kwargs):
         # Assign the number before the first insert so the in-memory instance has it too.

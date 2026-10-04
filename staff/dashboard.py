@@ -21,17 +21,25 @@ def _money(value):
     return round(float(value or 0), 2)
 
 
-def _delivery_details(notes):
-    """Orders store delivery info in notes as 'Deliver to: …', 'Phone: …', 'Location: …' lines."""
+def _delivery_details(order):
+    """Delivery info from the order's address fields, falling back to the notes older orders used."""
     details = {}
-    for line in (notes or '').splitlines():
+    for line in (order.notes or '').splitlines():
         key, sep, value = line.partition(':')
         if sep:
             details[key.strip().lower().replace(' ', '_')] = value.strip()
+    lines = order.shipping_address_lines()
+    if order.is_international:
+        location = ', '.join(lines[1:])  # everything after the name
+    else:
+        location = order.delivery_location or details.get('location', '')
     return {
-        'deliver_to': details.get('deliver_to', ''),
-        'phone': details.get('phone', ''),
-        'location': details.get('location', ''),
+        'deliver_to': order.shipping_name or details.get('deliver_to', ''),
+        'phone': order.shipping_phone or details.get('phone', ''),
+        'location': location,
+        'international': order.is_international,
+        'country': order.shipping_country,
+        'address_lines': lines,
     }
 
 
@@ -48,7 +56,7 @@ def _order_row(order):
         'created_at': order.created_at,
         'customer': customer,
         'items': [f'{item.product.name} x{item.quantity}' for item in items],
-        'delivery': _delivery_details(order.notes),
+        'delivery': _delivery_details(order),
     }
 
 

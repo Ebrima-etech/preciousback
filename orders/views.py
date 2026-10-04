@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from django.db import transaction
 from django.db.models import F
@@ -11,6 +11,8 @@ from .serializers import OrderSerializer, CartSerializer, CartItemSerializer
 from products.models import Product
 from payments.modempay import create_payment_intent, ModemPayError
 from staff.access import has_any_permission, require
+from .checkout import international_shipping_fee, prepare_checkout
+from .countries import COUNTRIES, HOME_COUNTRY
 
 # Staff who can see every order (order handling, reporting, payments, customer management)
 ORDER_READ_PERMISSIONS = ("manage_orders", "view_reports", "view_analytics", "manage_payments", "manage_users")
@@ -25,7 +27,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Customers can view their own orders and place new ones; changing orders is for order staff
         if self.action in ('update', 'partial_update', 'destroy', 'update_status'):
             return [require('manage_orders')()]
+        if self.action == 'shipping_options':
+            return [AllowAny()]
         return [IsAuthenticated()]
+
+    @action(detail=False, methods=['get'])
+    def shipping_options(self, request):
+        """Countries we ship to and the international shipping fee, for the checkout page."""
+        return Response({
+            'home_country': HOME_COUNTRY,
+            'currency': 'GMD',
+            'international_fee': float(international_shipping_fee()),
+            'countries': [{'code': code, 'name': name} for code, name in sorted(COUNTRIES.items(), key=lambda c: c[1])],
+        })
 
     def get_queryset(self):
         # Staff who work with orders see all of them; customers only see their own
@@ -52,44 +66,32 @@ class OrderViewSet(viewsets.ModelViewSet):
         """Create a payment intent for Wave checkout"""
         try:
             data = request.data
-
-            # Validate required fields
-            required_fields = ['total_amount', 'deliver_to', 'contact_number', 'delivery_location', 'items', 'return_url', 'cancel_url']
-            for field in required_fields:
-                if field not in data:
-                    return Response(
-                        {'error': f'Missing required field: {field}'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+            prepared = prepare_checkout(data)
+            if isinstance(prepared, Response):
+                return prepared
+            order_fields, items, total = prepared
 
             # Create order with transaction
             with transaction.atomic():
-                # Create order
                 order = Order.objects.create(
                     user=request.user,
-                    total_price=data['total_amount'],
+                    total_price=total,
                     status='payment_pending',
                     payment_method='wave',
-                    notes=f"Deliver to: {data['deliver_to']}\nPhone: {data['contact_number']}\nLocation: {data['delivery_location']}"
+                    **order_fields,
                 )
 
-                # Create order items
-                for item in data['items']:
-                    OrderItem.objects.create(
-                        order=order,
-                        product_id=item['product_id'],
-                        quantity=item['quantity'],
-                        price=item['price']
-                    )
+                for item in items:
+                    OrderItem.objects.create(order=order, **item)
 
                 # Create payment intent with ModemPay
                 try:
                     intent = create_payment_intent(
-                        amount=float(data['total_amount']),
+                        amount=float(total),
                         currency='GMD',
                         customer_email=request.user.email or '',
                         customer_name=request.user.first_name or request.user.username,
-                        customer_phone=data['contact_number'],
+                        customer_phone=order.shipping_phone,
                         return_url=data['return_url'],
                         cancel_url=data['cancel_url'],
                         metadata={'order_id': str(order.id)}

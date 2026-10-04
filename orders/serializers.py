@@ -18,8 +18,26 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'order_number', 'user_id', 'user_email', 'total_price', 'status', 'items', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        fields = ['id', 'order_number', 'user_id', 'user_email', 'total_price', 'status', 'items', 'created_at', 'updated_at',
+                  'payment_method', 'shipping_country', 'shipping_country_name', 'is_international', 'shipping_name',
+                  'shipping_phone', 'shipping_email', 'delivery_location', 'shipping_address_line1', 'shipping_house_number',
+                  'shipping_address_line2', 'shipping_city', 'shipping_region', 'shipping_postal_code', 'shipping_po_box',
+                  'delivery_fee', 'shipping_address']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'payment_method', 'shipping_country', 'shipping_name',
+                            'shipping_phone', 'shipping_email', 'delivery_location', 'shipping_address_line1',
+                            'shipping_house_number', 'shipping_address_line2', 'shipping_city', 'shipping_region',
+                            'shipping_postal_code', 'shipping_po_box', 'delivery_fee']
+
+    shipping_country_name = serializers.SerializerMethodField()
+    is_international = serializers.BooleanField(read_only=True)
+    shipping_address = serializers.SerializerMethodField()
+
+    def get_shipping_country_name(self, obj):
+        from .countries import country_name
+        return country_name(obj.shipping_country)
+
+    def get_shipping_address(self, obj):
+        return obj.shipping_address_lines()
 
     def get_order_number(self, obj):
         # Return order_number if it exists, otherwise generate random one
