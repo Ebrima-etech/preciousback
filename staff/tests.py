@@ -73,3 +73,25 @@ class StaffApiTests(TestCase):
         user = User.objects.get(pk=user_id)
         self.assertFalse(user.is_active)
         self.assertFalse(user.is_staff)
+
+    def test_existing_account_without_staff_profile_is_reused(self):
+        # e.g. an account left behind by the old, failing create
+        orphan = User.objects.create_user('awa@example.com', 'oldpassword', first_name='A', last_name='J')
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/api/staff/staff/', self.payload, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(response.data['reused_existing_account'])
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.staff_profile.role, 'technician')
+        self.assertTrue(orphan.check_password(response.data['temporary_password']))
+
+        again = self.client.post('/api/staff/staff/', self.payload, format='json')
+        self.assertEqual(again.status_code, 400)
+
+    def test_adding_yourself_does_not_reset_your_password(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/api/staff/staff/', {**self.payload, 'email': 'admin@example.com'}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIsNone(response.data['temporary_password'])
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.check_password('pass12345'))

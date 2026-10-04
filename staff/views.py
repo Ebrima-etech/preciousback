@@ -55,8 +55,9 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         if not email:
             return Response({'email': ['Email is required.']}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(email__iexact=email).exists():
-            return Response({'email': ['A user with this email already exists.']}, status=status.HTTP_400_BAD_REQUEST)
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user and Staff.objects.filter(user=existing_user).exists():
+            return Response({'email': ['This person is already a staff member.']}, status=status.HTTP_400_BAD_REQUEST)
         if not (request.data.get('first_name') or '').strip():
             return Response({'first_name': ['First name is required.']}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -73,13 +74,27 @@ class StaffViewSet(viewsets.ModelViewSet):
             password = get_random_string(12)
 
         with transaction.atomic():
-            user = User.objects.create_user(
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name,
-                is_staff=admin_access,
-            )
+            if existing_user:
+                # Reuse an account without a staff profile, e.g. one left behind by an earlier failed attempt.
+                # It gets a fresh password so the admin can hand it over.
+                user = existing_user
+                user.first_name = first_name
+                user.last_name = last_name
+                user.is_active = True
+                user.is_staff = user.is_staff or admin_access
+                if user.is_superuser or user.pk == request.user.pk:
+                    generated = False  # never reset the password of a superuser or the admin doing this
+                else:
+                    user.set_password(password)
+                user.save()
+            else:
+                user = User.objects.create_user(
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_staff=admin_access,
+                )
             staff = Staff.objects.create(user=user, **validated)
 
         _email_quietly(
@@ -90,6 +105,7 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         data = self.get_serializer(staff).data
         data['temporary_password'] = password if generated else None
+        data['reused_existing_account'] = bool(existing_user)
         return Response(data, status=status.HTTP_201_CREATED)
 
     def perform_destroy(self, instance):
