@@ -95,3 +95,29 @@ class StaffApiTests(TestCase):
         self.assertIsNone(response.data['temporary_password'])
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.check_password('pass12345'))
+
+    def test_make_existing_user_staff_keeps_their_password(self):
+        self.client.force_authenticate(self.admin)
+        payload = {k: v for k, v in self.payload.items() if k not in ('first_name', 'last_name', 'email')}
+        response = self.client.post('/api/staff/staff/', {**payload, 'user_id': self.customer.id, 'admin_access': True}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertIsNone(response.data['temporary_password'])
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.staff_profile.role, 'technician')
+        self.assertTrue(self.customer.is_staff)
+        self.assertTrue(self.customer.check_password('pass12345'))
+
+        again = self.client.post('/api/staff/staff/', {**payload, 'user_id': self.customer.id}, format='json')
+        self.assertEqual(again.status_code, 400)
+
+    def test_candidates_lists_only_non_staff_users(self):
+        self.client.force_authenticate(self.admin)
+        self.client.post('/api/staff/staff/', self.payload, format='json')  # awa becomes staff
+        response = self.client.get('/api/staff/staff/candidates/', {'search': 'example.com'})
+        emails = {u['email'] for u in response.data}
+        self.assertIn('customer@example.com', emails)
+        self.assertNotIn('awa@example.com', emails)
+
+    def test_candidates_is_staff_only(self):
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get('/api/staff/staff/candidates/').status_code, 403)

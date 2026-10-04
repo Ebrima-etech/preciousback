@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.conf import settings
 from django.db import transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.utils.crypto import get_random_string
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -50,6 +50,9 @@ class StaffViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaff]
 
     def create(self, request, *args, **kwargs):
+        if request.data.get('user_id'):
+            return self._create_for_existing_user(request)
+
         email = (request.data.get('email') or '').strip().lower()
         password = request.data.get('password') or ''
 
@@ -97,16 +100,73 @@ class StaffViewSet(viewsets.ModelViewSet):
                 )
             staff = Staff.objects.create(user=user, **validated)
 
-        _email_quietly(
-            'Your Precious Plastic staff account',
-            f'Your account has been created.\n\nEmail: {email}\nTemporary password: {password}\n\nPlease log in and change your password.',
-            email,
-        )
+        password_changed = not existing_user or not (user.is_superuser or user.pk == request.user.pk)
+        if password_changed:
+            _email_quietly(
+                'Your Precious Plastic staff account',
+                f'Your account has been created.\n\nEmail: {email}\nTemporary password: {password}\n\nPlease log in and change your password.',
+                email,
+            )
 
         data = self.get_serializer(staff).data
         data['temporary_password'] = password if generated else None
         data['reused_existing_account'] = bool(existing_user)
         return Response(data, status=status.HTTP_201_CREATED)
+
+    def _create_for_existing_user(self, request):
+        """Make an existing user (e.g. a customer account) a staff member. Their password is left alone."""
+        try:
+            user = User.objects.get(pk=int(request.data.get('user_id')))
+        except (User.DoesNotExist, TypeError, ValueError):
+            return Response({'user_id': ['User not found.']}, status=status.HTTP_400_BAD_REQUEST)
+        if Staff.objects.filter(user=user).exists():
+            return Response({'user_id': ['This person is already a staff member.']}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        validated.pop('first_name', None)
+        validated.pop('last_name', None)
+        admin_access = validated.pop('admin_access', False)
+
+        with transaction.atomic():
+            fields = []
+            if admin_access and not user.is_staff:
+                user.is_staff = True
+                fields.append('is_staff')
+            if not user.is_active:
+                user.is_active = True
+                fields.append('is_active')
+            if fields:
+                user.save(update_fields=fields)
+            staff = Staff.objects.create(user=user, **validated)
+
+        data = self.get_serializer(staff).data
+        data['temporary_password'] = None
+        data['reused_existing_account'] = True
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def candidates(self, request):
+        """Users who aren't staff yet, for the "make an existing user staff" search."""
+        search = (request.query_params.get('search') or '').strip()
+        qs = User.objects.filter(staff_profile__isnull=True, is_active=True).order_by('first_name', 'last_name', 'email')
+        if search:
+            qs = qs.filter(
+                Q(email__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search)
+                | Q(phone__icontains=search)
+            )
+        return Response([
+            {
+                'id': u.id,
+                'email': u.email,
+                'first_name': u.first_name,
+                'last_name': u.last_name,
+                'phone': getattr(u, 'phone', ''),
+                'date_joined': u.date_joined,
+            }
+            for u in qs[:20]
+        ])
 
     def perform_destroy(self, instance):
         # Remove the staff record and switch off the account; the user is kept because orders may reference it
