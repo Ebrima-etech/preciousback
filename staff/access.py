@@ -1,6 +1,6 @@
 """Who can see and do what in the staff dashboards.
 
-- Full admins (superusers, or users with is_staff) see everything.
+- Full admins (superusers, or is_staff accounts without a staff profile) see everything.
 - Other users with an active Staff profile get a dashboard built from the
   permissions on their profile.
 """
@@ -53,7 +53,16 @@ def staff_profile(user):
 
 
 def is_full_admin(user):
-    return bool(user and user.is_authenticated and (user.is_superuser or user.is_staff))
+    """Superusers, and admin accounts (is_staff) that have no staff profile.
+
+    Anyone with a staff profile is limited to their permissions, even if is_staff is set
+    (earlier versions set is_staff just to let staff sign in to the admin).
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.is_staff and getattr(user, 'staff_profile', None) is None
 
 
 def effective_permissions(user):

@@ -267,3 +267,21 @@ class AdminPagePermissionTests(TestCase):
         admin_staff = Staff.objects.create(user=self.admin, department=self.department, role='manager', hire_date='2026-01-01')
         self.assertEqual(self.client.post(f'/api/staff/staff/{admin_staff.id}/reset_password/').status_code, 403)
         self.assertEqual(self.client.post('/api/staff/staff/', {**base, 'email': 'root@example.com'}, format='json').status_code, 403)
+
+    def test_is_staff_flag_does_not_bypass_staff_permissions(self):
+        # Staff created with the old "can sign in to the admin" box ticked have is_staff=True
+        user = self.staff_with('ticked@example.com', 'manage_orders')
+        user.is_staff = True
+        user.save()
+        self.client.force_authenticate(user)
+        self.assertFalse(self.client.get('/api/staff/me/').data['is_admin'])
+        self.assertEqual(self.client.post('/api/products/', self.product_payload(), format='json').status_code, 403)
+        self.assertEqual(self.client.get('/api/users/').status_code, 403)
+        self.assertEqual(self.client.patch(f'/api/orders/{self.order.id}/', {'status': 'processing'}, format='json').status_code, 200)
+
+    def test_superuser_with_staff_profile_keeps_full_access(self):
+        owner = User.objects.create_superuser('owner@example.com', 'pass12345', first_name='Ow', last_name='Ner')
+        Staff.objects.create(user=owner, department=self.department, role='manager', permissions=[], hire_date='2026-01-01')
+        self.client.force_authenticate(owner)
+        self.assertTrue(self.client.get('/api/staff/me/').data['is_admin'])
+        self.assertEqual(self.client.get('/api/users/').status_code, 200)
