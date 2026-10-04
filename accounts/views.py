@@ -42,7 +42,7 @@ class AuthViewSet(viewsets.ViewSet):
                 # Try to get user by email and verify password
                 try:
                     user = User.objects.get(email=email)
-                    if user.check_password(password):
+                    if user.check_password(password) and user.is_active:
                         refresh = RefreshToken.for_user(user)
                         return Response({
                             'user': UserSerializer(user).data,
