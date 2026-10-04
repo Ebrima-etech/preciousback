@@ -5,7 +5,7 @@ from decouple import config
 from rest_framework import status
 from rest_framework.response import Response
 
-from products.models import Product
+from products.models import Location, Product
 from .countries import COUNTRIES, HOME_COUNTRY, country_name
 
 DEFAULT_INTERNATIONAL_SHIPPING_FEE = Decimal('2500')
@@ -17,6 +17,44 @@ def international_shipping_fee():
         return Decimal(str(config('INTERNATIONAL_SHIPPING_FEE', default=str(DEFAULT_INTERNATIONAL_SHIPPING_FEE))))
     except (InvalidOperation, ValueError):
         return DEFAULT_INTERNATIONAL_SHIPPING_FEE
+
+
+def gambia_delivery_fee(products, location):
+    """Same rule the checkout page shows: each product's delivery price for the location, once per product.
+
+    Products without a price for the location deliver for free.
+    """
+    fee = Decimal('0')
+    for product in products:
+        price = (product.delivery_prices or {}).get(str(location.id))
+        if price in (None, ''):
+            continue
+        try:
+            fee += Decimal(str(price))
+        except (InvalidOperation, ValueError):
+            continue
+    return fee
+
+
+def _check_expected_total(data, order_fields, order_items, total):
+    """Totals are always calculated here. If the customer saw a different total (e.g. a price changed while the
+    page was open), stop instead of charging an amount they didn't see."""
+    expected = data.get('total_amount')
+    if expected not in (None, ''):
+        try:
+            expected = Decimal(str(expected))
+        except (InvalidOperation, ValueError):
+            expected = None
+        if expected is None or abs(expected - total) > Decimal('0.01'):
+            return Response(
+                {
+                    'error': f'Prices have changed since you opened this page. The correct total is D {total:,.2f}. '
+                             'Please refresh the page and try again.',
+                    'total': float(total),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+    return order_fields, order_items, total
 
 
 def _clean(data, key, max_length=255):
@@ -48,8 +86,9 @@ def prepare_checkout(data):
     """Validate checkout data.
 
     Returns (order_fields, order_items, total) or an error Response.
-    - The Gambia: works as before (delivery location; total as calculated by the shop page).
-    - Elsewhere: full postal address; total calculated here from product prices plus international shipping.
+    - The Gambia: delivery location; delivery fee from each product's price for that location.
+    - Elsewhere: full postal address plus the flat international shipping fee.
+    Product prices always come from the database; client-sent prices are ignored.
     """
     for field in ('items', 'return_url', 'cancel_url'):
         if field not in data:
@@ -71,32 +110,35 @@ def prepare_checkout(data):
     if not phone:
         missing['contact_number'] = ['Enter a phone number.']
 
+    products = Product.objects.in_bulk([pid for pid, _, _ in items])
+    order_items = []
+    subtotal = Decimal('0')
+    for pid, qty, _ in items:
+        product = products.get(pid)
+        if product is None or not product.is_active:
+            return _error({'items': ['One of the products is no longer available.']})
+        order_items.append({'product_id': pid, 'quantity': qty, 'price': product.price})
+        subtotal += product.price * qty
+
     if country == HOME_COUNTRY:
-        location = _clean(data, 'delivery_location')
-        if not location:
+        location_name = _clean(data, 'delivery_location')
+        if not location_name:
             missing['delivery_location'] = ['Choose a delivery location.']
-        if 'total_amount' not in data:
-            missing['total_amount'] = ['Missing total.']
         if missing:
             return _error(missing)
-        try:
-            total = Decimal(str(data['total_amount']))
-            fee = Decimal(str(data.get('delivery_fee') or 0))
-        except (InvalidOperation, ValueError):
-            return _error({'total_amount': ['Invalid amount.']})
+        location = Location.objects.filter(name__iexact=location_name, is_active=True).first()
+        if location is None:
+            return _error({'delivery_location': ['We don’t deliver to that location. Please choose one from the list.']})
+        fee = gambia_delivery_fee([products[pid] for pid, _, _ in items], location)
         order_fields = {
             'shipping_country': HOME_COUNTRY,
             'shipping_name': name,
             'shipping_phone': phone,
-            'delivery_location': location,
+            'delivery_location': location.name,
             'delivery_fee': fee,
-            'notes': f'Deliver to: {name}\nPhone: {phone}\nLocation: {location}',
+            'notes': f'Deliver to: {name}\nPhone: {phone}\nLocation: {location.name}',
         }
-        order_items = [
-            {'product_id': pid, 'quantity': qty, 'price': Decimal(str(price or 0))}
-            for pid, qty, price in items
-        ]
-        return order_fields, order_items, total
+        return _check_expected_total(data, order_fields, order_items, subtotal + fee)
 
     # International: standard postal address
     address = {
@@ -120,16 +162,6 @@ def prepare_checkout(data):
     if missing:
         return _error(missing)
 
-    # Price everything on the server for international orders
-    products = Product.objects.in_bulk([pid for pid, _, _ in items])
-    order_items = []
-    subtotal = Decimal('0')
-    for pid, qty, _ in items:
-        product = products.get(pid)
-        if product is None or not product.is_active:
-            return _error({'items': ['One of the products is no longer available.']})
-        order_items.append({'product_id': pid, 'quantity': qty, 'price': product.price})
-        subtotal += product.price * qty
     fee = international_shipping_fee()
 
     location_line = ', '.join(p for p in (address['shipping_city'], address['shipping_region'], country_name(country)) if p)
@@ -151,4 +183,4 @@ def prepare_checkout(data):
             f'Email: {address["shipping_email"]}',
         ) if line),
     }
-    return order_fields, order_items, subtotal + fee
+    return _check_expected_total(data, order_fields, order_items, subtotal + fee)
