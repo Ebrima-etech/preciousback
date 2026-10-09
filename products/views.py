@@ -34,7 +34,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'is_active']
-    search_fields = ['name', 'description']
+    search_fields = ['name', 'description', 'category__name']
     ordering_fields = ['created_at', 'price', 'rating']
     ordering = ['-created_at']
 

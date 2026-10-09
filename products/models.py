@@ -70,6 +70,13 @@ class Product(models.Model):
     plastic_source = models.CharField(max_length=255, blank=True, help_text="Where the plastic was collected, e.g. 'Gunjur beach cleanups'")
     impact_story = models.TextField(blank=True, help_text="Short story about this product's impact")
 
+    # Shown under "Detailed Specifications" on the product page
+    specifications = models.JSONField(
+        default=list, blank=True,
+        help_text='List of {"label": ..., "value": ...} rows, e.g. Dimensions, Weight, Material, Colour'
+    )
+    warranty = models.CharField(max_length=120, default='1-year limited warranty', blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

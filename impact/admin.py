@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, NewsletterSubscription, BulkRFQ, Sponsorship
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
 from .constants import SPONSORSHIP_ITEMS
 
 
@@ -20,6 +20,7 @@ class ImpactEntryAdmin(admin.ModelAdmin):
 
 admin.site.register(CollectionZone)
 admin.site.register(Event)
+admin.site.register(VolunteerOpportunity)
 admin.site.register(NewsletterSubscription)
 admin.site.register(BulkRFQ)
 

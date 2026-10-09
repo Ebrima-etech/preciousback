@@ -285,3 +285,36 @@ class AdminPagePermissionTests(TestCase):
         self.client.force_authenticate(owner)
         self.assertTrue(self.client.get('/api/staff/me/').data['is_admin'])
         self.assertEqual(self.client.get('/api/users/').status_code, 200)
+
+
+class ProductDetailsAndBudgetTests(TestCase):
+    def setUp(self):
+        from products.models import Category
+        self.client = APIClient()
+        self.admin = User.objects.create_user('chief@example.com', 'pass12345', first_name='Ch', last_name='Ief', is_staff=True)
+        self.category = Category.objects.create(name='Furniture')
+
+    def test_product_specifications_and_warranty(self):
+        self.client.force_authenticate(self.admin)
+        response = self.client.post('/api/products/', {
+            'name': 'Bench', 'description': 'd', 'price': '900', 'stock': 3, 'category': self.category.id,
+            'specifications': [{'label': 'Dimensions', 'value': '120 x 40 cm'}, {'label': '', 'value': 'dropped'}],
+        }, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['specifications'], [{'label': 'Dimensions', 'value': '120 x 40 cm'}])
+        self.assertEqual(response.data['warranty'], '1-year limited warranty')
+
+    def test_budget_compares_yearly_budget_with_salaries(self):
+        dept = Department.objects.create(name='Production', budget_allocation=Decimal('120000'))
+        worker = User.objects.create_user('w@example.com', 'pass12345', first_name='Wo', last_name='Rker')
+        Staff.objects.create(user=worker, department=dept, role='technician', salary=Decimal('5000'), hire_date='2026-01-01')
+        self.client.force_authenticate(self.admin)
+        row = self.client.get('/api/staff/budget/').data['departments'][0]
+        self.assertEqual(row['yearly_salaries'], 60000.0)
+        self.assertEqual(row['remaining'], 60000.0)
+        self.assertEqual(row['used_percent'], 50.0)
+
+    def test_budget_needs_staff_or_payments_permission(self):
+        customer = User.objects.create_user('c@example.com', 'pass12345', first_name='C', last_name='U')
+        self.client.force_authenticate(customer)
+        self.assertEqual(self.client.get('/api/staff/budget/').status_code, 403)

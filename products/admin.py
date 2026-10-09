@@ -17,6 +17,7 @@ class ProductAdmin(admin.ModelAdmin):
         ('Pricing & Inventory', {'fields': ('price', 'stock')}),
         ('Media', {'fields': ('image',)}),
         ('Impact (per unit)', {'fields': ('plastic_type', 'plastic_recycled_kg', 'co2_saved_kg', 'water_saved_liters', 'plastic_source', 'impact_story')}),
+        ('Details', {'fields': ('specifications', 'warranty')}),
         ('Rating', {'fields': ('rating', 'reviews_count')}),
         ('Status', {'fields': ('is_active',)}),
     )

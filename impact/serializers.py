@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from .constants import AUTO_VALUE_UNITS, SPONSORSHIP_ITEMS
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
 from .services import compute_totals
 
 
@@ -143,3 +143,10 @@ class SponsorshipAdminSerializer(SponsorshipSerializer):
     class Meta(SponsorshipSerializer.Meta):
         fields = SponsorshipSerializer.Meta.fields + ['admin_notes', 'updated_at']
         read_only_fields = ['id', 'reference', 'amount', 'currency', 'created_at', 'updated_at']
+
+
+class VolunteerOpportunitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VolunteerOpportunity
+        fields = ['id', 'title', 'description', 'icon', 'color', 'order', 'is_active', 'updated_at']
+        read_only_fields = ['id', 'updated_at']

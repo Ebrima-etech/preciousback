@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission, SAFE_METHODS
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
 from staff.access import has_any_permission, require
 from .services import compute_summary, customer_impact, rebuild_sales_impact, sponsorship_stats, user_from_share_token
 from .constants import SPONSORSHIP_ITEMS
@@ -31,7 +31,7 @@ class IsAuthenticatedOrCreateOnly(BasePermission):
         return request.user and request.user.is_authenticated
 from .serializers import (ImpactMetricSerializer, ImpactEntrySerializer, CollectionZoneSerializer, EventSerializer, EventRegistrationSerializer,
                           NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer,
-                          SponsorshipAdminSerializer)
+                          SponsorshipAdminSerializer, VolunteerOpportunitySerializer)
 
 class ImpactMetricViewSet(viewsets.ModelViewSet):
     """Headline metrics: public read (active only), staff write."""
@@ -297,3 +297,16 @@ class SharedImpactView(APIView):
         if user is None:
             return Response({'error': 'Impact card not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(customer_impact(user, include_private=False))
+
+
+class VolunteerOpportunityViewSet(viewsets.ModelViewSet):
+    """'Ways to volunteer' cards on the Get Involved page. Public read; Manage Community staff edit."""
+    serializer_class = VolunteerOpportunitySerializer
+    permission_classes = [require('manage_community', read_public=True)]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = VolunteerOpportunity.objects.all()
+        if not has_any_permission(self.request.user, 'manage_community'):
+            qs = qs.filter(is_active=True)
+        return qs

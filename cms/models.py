@@ -111,6 +111,7 @@ class BlogPost(models.Model):
 class Service(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField()
+    details = models.TextField(blank=True, help_text='Longer text for the service detail page (one paragraph per line)')
     icon = models.CharField(max_length=50, blank=True)
     image = models.ImageField(upload_to='services/', blank=True)
     color_from = models.CharField(max_length=20, default='emerald-600', help_text='Tailwind color class for gradient start')

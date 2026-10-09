@@ -287,3 +287,22 @@ class SponsorshipTests(ImpactTestBase):
 
         self.client.patch(f'/api/impact/sponsorship/{sponsorship_id}/', {'status': 'cancelled'}, format='json')
         self.assertFalse(ImpactEntry.objects.filter(sponsorship_id=sponsorship_id).exists())
+
+
+class VolunteerOpportunityTests(ImpactTestBase):
+    def test_public_sees_active_cards_and_only_community_staff_edit(self):
+        from .models import VolunteerOpportunity
+        VolunteerOpportunity.objects.all().delete()
+        VolunteerOpportunity.objects.create(title='Beach Cleanups', description='Coastal drives', icon='droplet')
+        VolunteerOpportunity.objects.create(title='Hidden', description='x', is_active=False)
+
+        response = self.client.get('/api/impact/volunteer-opportunities/')
+        self.assertEqual([o['title'] for o in response.data], ['Beach Cleanups'])
+
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.post('/api/impact/volunteer-opportunities/', {'title': 'X', 'description': 'y'}, format='json').status_code, 403)
+
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(len(self.client.get('/api/impact/volunteer-opportunities/').data), 2)
+        response = self.client.post('/api/impact/volunteer-opportunities/', {'title': 'Mentoring', 'description': 'Guide students', 'icon': 'book'}, format='json')
+        self.assertEqual(response.status_code, 201, response.data)

@@ -38,7 +38,7 @@ class BlogPostDetailSerializer(BlogPostSerializer):
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
-        fields = ['id', 'name', 'description', 'icon', 'image', 'color_from', 'color_to', 'order', 'is_active']
+        fields = ['id', 'name', 'description', 'details', 'icon', 'image', 'color_from', 'color_to', 'order', 'is_active']
 
 class ContactInformationSerializer(serializers.ModelSerializer):
     class Meta:

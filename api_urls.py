@@ -8,11 +8,11 @@ from payments.webhooks import ModemPayWebhookView
 from impact.views import (
     ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet, EventRegistrationViewSet,
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet,
-    ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView
+    ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView, VolunteerOpportunityViewSet
 )
 from staff.views import (
     DepartmentViewSet, StaffViewSet, StaffMeView, StaffDashboardView, StaffOrderStatusView, StaffStockView,
-    RoleDefaultsView,
+    RoleDefaultsView, StaffBudgetView,
 )
 from cms.views import (
     PageViewSet, TestimonialViewSet, BannerViewSet, FAQViewSet,
@@ -52,6 +52,7 @@ router.register(r'impact/registrations', EventRegistrationViewSet, basename='eve
 router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-newsletter')
 router.register(r'impact/rfq', BulkRFQViewSet, basename='bulk-rfq')
 router.register(r'impact/sponsorship', SponsorshipViewSet, basename='sponsorship')
+router.register(r'impact/volunteer-opportunities', VolunteerOpportunityViewSet, basename='volunteer-opportunity')
 
 # Staff Management
 router.register(r'staff/departments', DepartmentViewSet, basename='department')
@@ -81,6 +82,7 @@ urlpatterns = [
     path('staff/dashboard/orders/<int:pk>/status/', StaffOrderStatusView.as_view(), name='staff-order-status'),
     path('staff/dashboard/products/<int:pk>/stock/', StaffStockView.as_view(), name='staff-product-stock'),
     path('staff/role-defaults/', RoleDefaultsView.as_view(), name='staff-role-defaults'),
+    path('staff/budget/', StaffBudgetView.as_view(), name='staff-budget'),
     path('impact/share/<str:token>/', SharedImpactView.as_view(), name='impact-share'),
     path('', include(router.urls)),
     path('webhooks/modempay/', ModemPayWebhookView.as_view(), name='modempay-webhook'),

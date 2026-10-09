@@ -13,7 +13,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
 
 IMPACT_FIELDS = ['plastic_type', 'plastic_recycled_kg', 'co2_saved_kg', 'water_saved_liters',
-                 'plastic_source', 'impact_story', 'bottles_equivalent', 'has_impact']
+                 'plastic_source', 'impact_story', 'bottles_equivalent', 'has_impact', 'specifications', 'warranty']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -26,6 +26,22 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name', 'description', 'price', 'category', 'category_name', 'image', 'stock', 'rating', 'reviews_count', 'is_active', 'delivery_prices', 'created_at'] + IMPACT_FIELDS
         read_only_fields = ['id', 'created_at', 'rating', 'reviews_count']
+
+    def validate_specifications(self, value):
+        """Keep only clean {label, value} rows (max 30)."""
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Specifications must be a list of rows.')
+        rows = []
+        for row in value[:30]:
+            if not isinstance(row, dict):
+                raise serializers.ValidationError('Each specification needs a label and a value.')
+            label = str(row.get('label') or '').strip()[:80]
+            text = str(row.get('value') or '').strip()[:255]
+            if label and text:
+                rows.append({'label': label, 'value': text})
+        return rows
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

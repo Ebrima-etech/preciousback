@@ -192,3 +192,41 @@ class Sponsorship(models.Model):
                 ref = generate_sponsorship_reference()
             self.reference = ref
         super().save(*args, **kwargs)
+
+
+class VolunteerOpportunity(models.Model):
+    """A "Ways to volunteer" card on the Get Involved page, managed from the admin."""
+    ICON_CHOICES = [
+        ('droplet', 'Water / beach'),
+        ('tool', 'Tools / workshop'),
+        ('book', 'Education'),
+        ('chart', 'Fundraising / growth'),
+        ('users', 'Community'),
+        ('heart', 'Care'),
+        ('gift', 'Donations'),
+        ('globe', 'Environment'),
+    ]
+    COLOR_CHOICES = [
+        ('blue', 'Blue'),
+        ('emerald', 'Green'),
+        ('purple', 'Purple'),
+        ('orange', 'Orange'),
+        ('rose', 'Rose'),
+        ('teal', 'Teal'),
+    ]
+
+    title = models.CharField(max_length=100)
+    description = models.CharField(max_length=255)
+    icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='users')
+    color = models.CharField(max_length=20, choices=COLOR_CHOICES, default='emerald')
+    order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name_plural = 'Volunteer opportunities'
+
+    def __str__(self):
+        return self.title

@@ -405,3 +405,54 @@ class RoleDefaultsView(APIView):
 
     def get(self, request):
         return Response(ROLE_DEFAULT_PERMISSIONS)
+
+
+class StaffBudgetView(APIView):
+    """Each department's yearly budget compared with what its active staff cost in salaries."""
+    permission_classes = [require('manage_staff', 'manage_payments')]
+
+    def get(self, request):
+        from decimal import Decimal
+        from django.db.models import Count, Sum
+
+        zero = Decimal('0')
+        departments = Department.objects.annotate(
+            monthly_salaries=Sum('staff_members__salary', filter=Q(staff_members__is_active=True), default=zero),
+            active_staff=Count('staff_members', filter=Q(staff_members__is_active=True)),
+            unsalaried=Count('staff_members', filter=Q(staff_members__is_active=True, staff_members__salary__isnull=True)),
+        ).order_by('name')
+
+        rows = []
+        totals = {'budget': zero, 'monthly_salaries': zero, 'yearly_salaries': zero}
+        for dept in departments:
+            monthly = dept.monthly_salaries or zero
+            yearly = monthly * 12
+            budget = dept.budget_allocation or zero
+            rows.append({
+                'id': dept.id,
+                'name': dept.name,
+                'is_active': dept.is_active,
+                'budget': float(budget),
+                'active_staff': dept.active_staff,
+                'staff_without_salary': dept.unsalaried,
+                'monthly_salaries': float(monthly),
+                'yearly_salaries': float(yearly),
+                'remaining': float(budget - yearly),
+                'used_percent': round(float(yearly / budget * 100), 1) if budget > 0 else None,
+            })
+            totals['budget'] += budget
+            totals['monthly_salaries'] += monthly
+            totals['yearly_salaries'] += yearly
+
+        return Response({
+            'currency': 'GMD',
+            'assumptions': 'Budgets are per year; staff salaries are per month (x12 for the yearly cost).',
+            'departments': rows,
+            'totals': {
+                'budget': float(totals['budget']),
+                'monthly_salaries': float(totals['monthly_salaries']),
+                'yearly_salaries': float(totals['yearly_salaries']),
+                'remaining': float(totals['budget'] - totals['yearly_salaries']),
+                'used_percent': round(float(totals['yearly_salaries'] / totals['budget'] * 100), 1) if totals['budget'] > 0 else None,
+            },
+        })
