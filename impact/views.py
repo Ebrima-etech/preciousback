@@ -223,6 +223,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     permission_classes = [require('manage_community')]
 
 class SponsorshipSubmitThrottle(AnonRateThrottle):
+    scope = 'sponsorship_submit'  # own counter, separate from other public forms
     rate = '20/hour'
 
 
@@ -314,6 +315,7 @@ class VolunteerOpportunityViewSet(viewsets.ModelViewSet):
 
 
 class VolunteerApplyThrottle(AnonRateThrottle):
+    scope = 'volunteer_apply'  # own counter, separate from other public forms
     rate = '10/hour'
 
 
