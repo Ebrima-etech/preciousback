@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, BasePermission, SAFE_METHODS
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity, VolunteerApplication
 from staff.access import has_any_permission, require
 from .services import compute_summary, customer_impact, rebuild_sales_impact, sponsorship_stats, user_from_share_token
 from .constants import SPONSORSHIP_ITEMS
@@ -31,7 +31,8 @@ class IsAuthenticatedOrCreateOnly(BasePermission):
         return request.user and request.user.is_authenticated
 from .serializers import (ImpactMetricSerializer, ImpactEntrySerializer, CollectionZoneSerializer, EventSerializer, EventRegistrationSerializer,
                           NewsletterSubscriptionSerializer, BulkRFQSerializer, SponsorshipSerializer,
-                          SponsorshipAdminSerializer, VolunteerOpportunitySerializer)
+                          SponsorshipAdminSerializer, VolunteerOpportunitySerializer,
+                          VolunteerApplicationSerializer, VolunteerApplicationAdminSerializer)
 
 class ImpactMetricViewSet(viewsets.ModelViewSet):
     """Headline metrics: public read (active only), staff write."""
@@ -310,3 +311,81 @@ class VolunteerOpportunityViewSet(viewsets.ModelViewSet):
         if not has_any_permission(self.request.user, 'manage_community'):
             qs = qs.filter(is_active=True)
         return qs
+
+
+class VolunteerApplyThrottle(AnonRateThrottle):
+    rate = '10/hour'
+
+
+class VolunteerApplicationViewSet(viewsets.ModelViewSet):
+    """Anyone can apply to volunteer; Manage Community staff review applications."""
+    queryset = VolunteerApplication.objects.select_related('team_member')
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'availability']
+    search_fields = ['full_name', 'email', 'phone', 'location', 'skills', 'motivation']
+    ordering_fields = ['created_at', 'full_name', 'status']
+    ordering = ['-created_at']
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [AllowAny()]
+        return [require('manage_community')()]
+
+    def get_throttles(self):
+        if self.action == 'create':
+            return [VolunteerApplyThrottle()]
+        return super().get_throttles()
+
+    def get_authenticators(self):
+        # The public form must work even if the browser holds an expired token
+        action_map = getattr(self, 'action_map', None) or {}
+        request = getattr(self, 'request', None)
+        if request is not None and action_map.get(request.method.lower()) == 'create':
+            return []
+        return super().get_authenticators()
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return VolunteerApplicationSerializer
+        return VolunteerApplicationAdminSerializer
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        from django.db.models import Count
+        from django.utils import timezone
+        from datetime import timedelta
+
+        by_status = dict(VolunteerApplication.objects.values_list('status').annotate(n=Count('id')))
+        interests = {}
+        for picked in VolunteerApplication.objects.values_list('interests', flat=True):
+            for title in picked or []:
+                interests[title] = interests.get(title, 0) + 1
+        return Response({
+            'total': sum(by_status.values()),
+            'by_status': {key: by_status.get(key, 0) for key, _ in VolunteerApplication.STATUS_CHOICES},
+            'last_30_days': VolunteerApplication.objects.filter(created_at__gte=timezone.now() - timedelta(days=30)).count(),
+            'top_interests': sorted(({'title': t, 'count': c} for t, c in interests.items()), key=lambda x: -x['count'])[:5],
+        })
+
+    @action(detail=True, methods=['post'])
+    def add_to_team(self, request, pk=None):
+        """Approve the application and add the person to the team as a volunteer (shown on the Team page)."""
+        from cms.models import TeamMember
+
+        application = self.get_object()
+        if application.team_member_id:
+            return Response({'error': 'This applicant is already on the team.'}, status=status.HTTP_400_BAD_REQUEST)
+        role = str(request.data.get('role') or 'Volunteer').strip()[:255] or 'Volunteer'
+        last = TeamMember.objects.filter(category='volunteer').order_by('-order').first()
+        member = TeamMember.objects.create(
+            name=application.full_name,
+            role=role,
+            category='volunteer',
+            description='',
+            order=(last.order + 1) if last else 0,
+            is_active=True,
+        )
+        application.team_member = member
+        application.status = 'approved'
+        application.save(update_fields=['team_member', 'status', 'updated_at'])
+        return Response(self.get_serializer(application).data)

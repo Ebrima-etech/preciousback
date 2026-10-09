@@ -1,7 +1,7 @@
 from decimal import Decimal
 from rest_framework import serializers
 from .constants import AUTO_VALUE_UNITS, SPONSORSHIP_ITEMS
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, EventRegistration, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity, VolunteerApplication
 from .services import compute_totals
 
 
@@ -150,3 +150,35 @@ class VolunteerOpportunitySerializer(serializers.ModelSerializer):
         model = VolunteerOpportunity
         fields = ['id', 'title', 'description', 'icon', 'color', 'order', 'is_active', 'updated_at']
         read_only_fields = ['id', 'updated_at']
+
+
+class VolunteerApplicationSerializer(serializers.ModelSerializer):
+    """Public "apply to volunteer" form."""
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+    availability_label = serializers.CharField(source='get_availability_display', read_only=True)
+
+    class Meta:
+        model = VolunteerApplication
+        fields = ['id', 'full_name', 'email', 'phone', 'location', 'interests', 'availability', 'availability_label',
+                  'skills', 'motivation', 'how_heard', 'status', 'status_label', 'created_at']
+        read_only_fields = ['id', 'status', 'created_at']
+
+    def validate_interests(self, value):
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError('Choose from the list.')
+        return [str(item).strip()[:100] for item in value[:12] if str(item).strip()]
+
+    def validate_motivation(self, value):
+        if len(value.strip()) < 10:
+            raise serializers.ValidationError('Tell us a little more (at least a sentence).')
+        return value.strip()
+
+
+class VolunteerApplicationAdminSerializer(VolunteerApplicationSerializer):
+    team_member_name = serializers.CharField(source='team_member.name', read_only=True, default=None)
+
+    class Meta(VolunteerApplicationSerializer.Meta):
+        fields = VolunteerApplicationSerializer.Meta.fields + ['admin_notes', 'team_member', 'team_member_name', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'team_member']

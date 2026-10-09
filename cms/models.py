@@ -252,8 +252,15 @@ class HeroSlide(models.Model):
 
 
 class TeamMember(models.Model):
+    CATEGORY_CHOICES = [
+        ('founder', 'Founder'),
+        ('staff', 'Staff'),
+        ('volunteer', 'Volunteer'),
+    ]
+
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=255)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='staff')
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='team/', blank=True, null=True)
     image_url = models.URLField(blank=True)

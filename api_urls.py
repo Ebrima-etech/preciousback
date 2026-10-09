@@ -8,7 +8,8 @@ from payments.webhooks import ModemPayWebhookView
 from impact.views import (
     ImpactMetricViewSet, CollectionZoneViewSet, EventViewSet, EventRegistrationViewSet,
     NewsletterViewSet as ImpactNewsletterViewSet, BulkRFQViewSet, SponsorshipViewSet,
-    ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView, VolunteerOpportunityViewSet
+    ImpactEntryViewSet, ImpactSummaryView, CustomerImpactView, SharedImpactView, VolunteerOpportunityViewSet,
+    VolunteerApplicationViewSet,
 )
 from staff.views import (
     DepartmentViewSet, StaffViewSet, StaffMeView, StaffDashboardView, StaffOrderStatusView, StaffStockView,
@@ -53,6 +54,7 @@ router.register(r'impact/newsletter', ImpactNewsletterViewSet, basename='impact-
 router.register(r'impact/rfq', BulkRFQViewSet, basename='bulk-rfq')
 router.register(r'impact/sponsorship', SponsorshipViewSet, basename='sponsorship')
 router.register(r'impact/volunteer-opportunities', VolunteerOpportunityViewSet, basename='volunteer-opportunity')
+router.register(r'impact/volunteer-applications', VolunteerApplicationViewSet, basename='volunteer-application')
 
 # Staff Management
 router.register(r'staff/departments', DepartmentViewSet, basename='department')

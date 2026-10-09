@@ -306,3 +306,42 @@ class VolunteerOpportunityTests(ImpactTestBase):
         self.assertEqual(len(self.client.get('/api/impact/volunteer-opportunities/').data), 2)
         response = self.client.post('/api/impact/volunteer-opportunities/', {'title': 'Mentoring', 'description': 'Guide students', 'icon': 'book'}, format='json')
         self.assertEqual(response.status_code, 201, response.data)
+
+
+class VolunteerApplicationTests(ImpactTestBase):
+    payload = {
+        'full_name': 'Isatou Ceesay', 'email': 'isatou@example.com', 'phone': '+220 700 1111', 'location': 'Gunjur',
+        'interests': ['Beach Cleanups', 'Workshops'], 'availability': 'weekends',
+        'motivation': 'I want to help keep our beaches clean.',
+    }
+
+    def test_public_can_apply_even_with_a_stale_token(self):
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer stale')
+        response = self.client.post('/api/impact/volunteer-applications/', self.payload, format='json')
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data['status'], 'new')
+
+    def test_short_motivation_is_rejected(self):
+        response = self.client.post('/api/impact/volunteer-applications/', {**self.payload, 'motivation': 'hi'}, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_only_community_staff_can_review(self):
+        self.client.post('/api/impact/volunteer-applications/', self.payload, format='json')
+        self.client.force_authenticate(self.customer)
+        self.assertEqual(self.client.get('/api/impact/volunteer-applications/').status_code, 403)
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(self.client.get('/api/impact/volunteer-applications/').data['count'], 1)
+        stats = self.client.get('/api/impact/volunteer-applications/stats/').data
+        self.assertEqual(stats['by_status']['new'], 1)
+        self.assertEqual(stats['top_interests'][0]['count'], 1)
+
+    def test_add_to_team_creates_volunteer_member(self):
+        from cms.models import TeamMember
+        app_id = self.client.post('/api/impact/volunteer-applications/', self.payload, format='json').data['id']
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(f'/api/impact/volunteer-applications/{app_id}/add_to_team/', {'role': 'Beach Cleanup Volunteer'}, format='json')
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(response.data['status'], 'approved')
+        member = TeamMember.objects.get(name='Isatou Ceesay')
+        self.assertEqual(member.category, 'volunteer')
+        self.assertEqual(self.client.post(f'/api/impact/volunteer-applications/{app_id}/add_to_team/').status_code, 400)

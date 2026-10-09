@@ -230,3 +230,43 @@ class VolunteerOpportunity(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class VolunteerApplication(models.Model):
+    """Someone applying to volunteer from the Get Involved page."""
+    AVAILABILITY_CHOICES = [
+        ('weekdays', 'Weekdays'),
+        ('weekends', 'Weekends'),
+        ('evenings', 'Evenings'),
+        ('flexible', 'Flexible'),
+    ]
+    STATUS_CHOICES = [
+        ('new', 'New'),
+        ('contacted', 'Contacted'),
+        ('approved', 'Approved'),
+        ('declined', 'Declined'),
+    ]
+
+    full_name = models.CharField(max_length=150)
+    email = models.EmailField()
+    phone = models.CharField(max_length=40, blank=True)
+    location = models.CharField(max_length=120, blank=True, help_text='Town / area')
+    interests = models.JSONField(default=list, blank=True, help_text='Volunteer opportunity titles they picked')
+    availability = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='flexible')
+    skills = models.TextField(blank=True, help_text='Skills or experience')
+    motivation = models.TextField(help_text='Why they want to volunteer')
+    how_heard = models.CharField(max_length=120, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    admin_notes = models.TextField(blank=True)
+    team_member = models.ForeignKey(
+        'cms.TeamMember', on_delete=models.SET_NULL, null=True, blank=True, related_name='volunteer_applications',
+        help_text='Set when the applicant was added to the team as a volunteer',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.full_name} ({self.get_status_display()})'

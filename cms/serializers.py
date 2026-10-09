@@ -90,7 +90,7 @@ class HeroSlideSerializer(serializers.ModelSerializer):
 class TeamMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeamMember
-        fields = ['id', 'name', 'role', 'description', 'image', 'image_url', 'order', 'is_active', 'created_at']
+        fields = ['id', 'name', 'role', 'category', 'description', 'image', 'image_url', 'order', 'is_active', 'created_at']
 
 
 class PartnerSerializer(serializers.ModelSerializer):

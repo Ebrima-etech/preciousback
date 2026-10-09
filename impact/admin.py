@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity
+from .models import ImpactMetric, ImpactEntry, CollectionZone, Event, NewsletterSubscription, BulkRFQ, Sponsorship, VolunteerOpportunity, VolunteerApplication
 from .constants import SPONSORSHIP_ITEMS
 
 
@@ -21,6 +21,14 @@ class ImpactEntryAdmin(admin.ModelAdmin):
 admin.site.register(CollectionZone)
 admin.site.register(Event)
 admin.site.register(VolunteerOpportunity)
+
+
+@admin.register(VolunteerApplication)
+class VolunteerApplicationAdmin(admin.ModelAdmin):
+    list_display = ["full_name", "email", "availability", "status", "created_at"]
+    list_filter = ["status", "availability"]
+    search_fields = ["full_name", "email", "phone", "location"]
+
 admin.site.register(NewsletterSubscription)
 admin.site.register(BulkRFQ)
 
